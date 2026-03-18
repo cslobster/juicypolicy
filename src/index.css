@@ -75,14 +75,23 @@
     @apply bg-primary text-primary-foreground;
   }
 
+  html {
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+  }
+
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
 
   ::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.25);
+    background: transparent;
+  }
+
+  :hover::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.2);
   }
 
   ::-webkit-scrollbar-track {
