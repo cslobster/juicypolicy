@@ -5,6 +5,7 @@ import Header from './components/Header';
 import LandingPage from './pages/LandingPage';
 import QuotePage from './pages/QuotePage';
 import LoginPage from './pages/LoginPage';
+import AgentsPage from './pages/AgentsPage';
 
 const QuotePageWrapper = () => {
   const location = useLocation();
@@ -22,6 +23,7 @@ function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/quote" element={<QuotePageWrapper />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
             </Routes>
           </main>
         </div>
