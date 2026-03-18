@@ -76,22 +76,22 @@
   }
 
   html {
-    overflow-y: auto;
-    scrollbar-gutter: auto;
+    overflow-y: overlay;
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: transparent;
+    background: rgba(15, 23, 42, 0.15);
   }
 
-  :hover::-webkit-scrollbar-thumb {
-    background: rgba(15, 23, 42, 0.2);
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 23, 42, 0.3);
   }
 
   ::-webkit-scrollbar-track {
