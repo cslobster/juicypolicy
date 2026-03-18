@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Activity, CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
