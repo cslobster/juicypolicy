@@ -25,7 +25,7 @@ interface Message {
     options?: string[];
     quotesList?: QuotePlan[];
     isTyping?: boolean;
-    interactiveWidget?: 'country_selector' | 'travel_details' | 'enrollment_form' | 'payment_checkout';
+    interactiveWidget?: 'country_selector' | 'travel_details' | 'life_details' | 'enrollment_form' | 'payment_checkout';
     selectedPlanContext?: QuotePlan;
     imageUrl?: string;
 }
@@ -119,6 +119,53 @@ const TravelDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => voi
                     <Plus size={16} /> 添加儿童
                 </Button>
 
+                <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
+                    生成报价
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
+const LifeDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => void }> = ({ onSubmit }) => {
+    const [age, setAge] = useState('');
+    const [zip, setZip] = useState('');
+    const [gender, setGender] = useState('');
+
+    const isValid = age && zip && gender;
+
+    const handleSubmit = () => {
+        if (!isValid) return;
+        const genderLabel = gender === 'male' ? '男' : '女';
+        onSubmit(`年龄: ${age}, 邮编: ${zip}, 性别: ${genderLabel}`, { age, zip, gender });
+    };
+
+    return (
+        <Card className="animate-fade-in mt-6">
+            <CardContent className="pt-6">
+                <h4 className="mb-4 text-primary font-serif">基本信息</h4>
+                <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">年龄</label>
+                        <Input type="number" placeholder="例如: 35" value={age} onChange={e => setAge(e.target.value)} />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">邮编</label>
+                        <Input type="text" placeholder="例如: 94105" value={zip} onChange={e => setZip(e.target.value)} />
+                    </div>
+                </div>
+                <div className="mb-6">
+                    <label className="block text-sm mb-1 text-foreground">性别</label>
+                    <select
+                        value={gender}
+                        onChange={e => setGender(e.target.value)}
+                        className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        <option value="" disabled>请选择</option>
+                        <option value="male">男</option>
+                        <option value="female">女</option>
+                    </select>
+                </div>
                 <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
                     生成报价
                 </Button>
@@ -367,18 +414,19 @@ const QuotePage: React.FC = () => {
         { num: 5, label: '完成' }
     ];
 
-    const initialGreeting = selectedType === '旅行保险'
-        ? `为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？`
-        : `首先，请问您所在美国哪个州，或者您的邮编是多少？`;
+    const isLifeInsurance = selectedType === '定期寿险' || selectedType === '终身寿险';
 
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '1',
-            sender: 'bot',
-            text: initialGreeting,
-            interactiveWidget: selectedType === '旅行保险' ? 'country_selector' : undefined
+    const getInitialMessage = (): Message => {
+        if (selectedType === '旅行保险') {
+            return { id: '1', sender: 'bot', text: '为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？', interactiveWidget: 'country_selector' };
         }
-    ]);
+        if (isLifeInsurance) {
+            return { id: '1', sender: 'bot', text: '为了给您提供准确的报价，请填写以下基本信息：', interactiveWidget: 'life_details' };
+        }
+        return { id: '1', sender: 'bot', text: '首先，请问您所在美国哪个州，或者您的邮编是多少？' };
+    };
+
+    const [messages, setMessages] = useState<Message[]>([getInitialMessage()]);
 
     const [input, setInput] = useState('');
     const [isBotTyping, setIsBotTyping] = useState(false);
@@ -433,6 +481,38 @@ const QuotePage: React.FC = () => {
                     };
                     setChatStage(4);
                     setTimeout(() => triggerQuoteGeneration('travel'), 2000);
+                } else if (chatStage === 5) { // After enrollment form
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `信息记录成功，核保已初步通过！最后一步，请使用借记卡/信用卡安全支付您的保费：`,
+                        interactiveWidget: 'payment_checkout',
+                        selectedPlanContext: selectedPlan || undefined
+                    };
+                    setChatStage(6);
+                } else if (chatStage === 6) { // After payment
+                    setStep(5);
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `🎉 支付成功！恭喜，您已成功完成投保。电子保单将在几分钟内发送至您的邮箱。感谢您使用鲜橙保险！`
+                    };
+                    setChatStage(7);
+                } else {
+                    newBotMsg = { id: Date.now().toString(), sender: 'bot', text: '如果您对当前流程有任何疑问，可以随时告诉我。' };
+                }
+            }
+            // ====== LIFE INSURANCE FLOW ======
+            else if (isLifeInsurance) {
+                if (chatStage === 1) { // After life details widget
+                    if (widgetData) setTravelData(widgetData); // reuse travelData for storing life details
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `信息已收到。鲜橙保险正在为您生成最优${selectedType}方案...`
+                    };
+                    setChatStage(4);
+                    setTimeout(() => triggerQuoteGeneration('general'), 2000);
                 } else if (chatStage === 5) { // After enrollment form
                     newBotMsg = {
                         id: Date.now().toString(),
@@ -712,6 +792,11 @@ const QuotePage: React.FC = () => {
                                 {/* === TRAVEL DETAILS WIDGET === */}
                                 {msg.interactiveWidget === 'travel_details' && (
                                     <TravelDetailsWidget onSubmit={(text, data) => handleSend(text, data)} />
+                                )}
+
+                                {/* === LIFE DETAILS WIDGET === */}
+                                {msg.interactiveWidget === 'life_details' && (
+                                    <LifeDetailsWidget onSubmit={(text, data) => handleSend(text, data)} />
                                 )}
 
                                 {/* === ENROLLMENT FORM WIDGET === */}
