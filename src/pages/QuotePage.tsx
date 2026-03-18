@@ -368,8 +368,8 @@ const QuotePage: React.FC = () => {
     ];
 
     const initialGreeting = selectedType === '旅行保险'
-        ? `您好！我是您的专属保险顾问。您选择了【旅行保险】。为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？`
-        : `您好！我是您的专属保险顾问。您选择了【${selectedType}】，我们将一起完成您的个性化报价。首先，请问您所在美国哪个州，或者您的邮编是多少？`;
+        ? `为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？`
+        : `首先，请问您所在美国哪个州，或者您的邮编是多少？`;
 
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -568,11 +568,13 @@ const QuotePage: React.FC = () => {
                     selectedPlanContext: plan
                 }]);
             } else {
-                setStep(5);
+                setChatStage(5);
                 setMessages(prev => [...prev, {
                     id: (Date.now() + 1).toString(),
                     sender: 'bot',
-                    text: `🎉 恭喜！您已成功选购【${plan.name}】。电子保单已发送至您的邮箱。`
+                    text: `极好的选择！为了完成【${plan.name}】的投保，请填写下方入保人员的详细信息。我们会严格保护您的隐私：`,
+                    interactiveWidget: 'enrollment_form',
+                    selectedPlanContext: plan
                 }]);
             }
         }, 1500);
@@ -647,11 +649,7 @@ const QuotePage: React.FC = () => {
             </div>
 
             <div className="text-center mb-4">
-                <h2 className="text-2xl font-semibold mb-2 font-serif">多维比价 - {selectedType}</h2>
-                <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
-                    <Activity size={16} className="text-primary" />
-                    基于市场大数据的智能推荐
-                </p>
+                <h2 className="text-2xl font-semibold mb-2 font-serif">{selectedType}</h2>
             </div>
 
             <div className="flex-1 flex flex-col bg-white overflow-hidden">

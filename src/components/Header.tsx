@@ -31,7 +31,7 @@ const Header = () => {
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-2 font-serif text-base font-semibold text-slate-900">
-                    <Citrus size={20} className="text-primary" />
+                    <Citrus size={20} className="text-orange-500" />
                     鲜橙保险
                 </Link>
 
