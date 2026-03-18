@@ -8,14 +8,14 @@ const AgentsPage = () => {
                 <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-orange-50">
                     <Users className="h-8 w-8 text-orange-500" />
                 </div>
-                <h1 className="text-3xl font-bold mb-4">代理网络</h1>
+                <h1 className="text-3xl font-bold mb-4">经纪网络</h1>
                 <p className="text-[#0d0d0d] text-[15px] leading-[1.7] mb-8">
-                    加入鲜橙保险代理网络，我们将为每位代理人生成专属独立站点，帮助您高效展示产品、获取客户报价、管理业务。
+                    加入鲜橙保险经纪网络，我们将为每位经纪人生成专属独立站点，帮助您高效展示产品、获取客户报价、管理业务。
                 </p>
 
                 <Card className="text-left mb-6">
                     <CardContent className="pt-6">
-                        <h3 className="font-serif text-lg font-semibold mb-4">代理专属站点包含</h3>
+                        <h3 className="font-serif text-lg font-semibold mb-4">经纪专属站点包含</h3>
                         <ul className="space-y-3 text-sm text-[#0d0d0d]">
                             <li className="flex items-start gap-3">
                                 <Globe className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />

@@ -9,7 +9,7 @@ const navItems = [
     { path: '/quote?type=term-life', label: '人寿', icon: HeartPulse },
     { path: '/quote?type=health', label: '健保', icon: ShieldPlus },
     { path: '/quote?type=property', label: '财产', icon: Building2 },
-    { path: '/agents', label: '代理网络', icon: Users },
+    { path: '/agents', label: '经纪网络', icon: Users },
     { path: '/about', label: '关于我们', icon: Info },
 ];
 

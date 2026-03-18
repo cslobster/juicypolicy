@@ -124,7 +124,7 @@ const LandingPage: React.FC = () => {
                         继续之前的报价 <ChevronRight size={14} />
                     </Button>
                     <Button variant="outline" className="gap-1">
-                        寻找保险代理 <ChevronRight size={14} />
+                        寻找保险经纪 <ChevronRight size={14} />
                     </Button>
                 </div>
             </section>
