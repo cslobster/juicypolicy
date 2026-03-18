@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Send, Activity, CheckCircle2, ShieldAlert, Star, Plus, Trash, Image as ImageIcon } from 'lucide-react';
+import { Activity, CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -74,35 +74,35 @@ const TravelDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => voi
     return (
         <Card className="animate-fade-in mt-6">
             <CardContent className="pt-6">
-                <h4 className="mb-4 text-primary font-serif">行程日期 (Coverage Dates)</h4>
+                <h4 className="mb-4 text-primary font-serif">行程日期</h4>
                 <div className="flex gap-4 mb-6">
                     <div className="flex-1">
-                        <label className="block text-sm mb-1 text-foreground">Start Date</label>
+                        <label className="block text-sm mb-1 text-foreground">开始日期</label>
                         <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </div>
                     <div className="flex-1">
-                        <label className="block text-sm mb-1 text-foreground">End Date</label>
+                        <label className="block text-sm mb-1 text-foreground">结束日期</label>
                         <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     </div>
                 </div>
 
-                <h4 className="mb-4 text-primary font-serif">投保人年龄 (Insureds' Ages)</h4>
+                <h4 className="mb-4 text-primary font-serif">投保人年龄</h4>
                 <div className="flex gap-4 mb-4">
                     <div className="flex-1">
-                        <label className="block text-sm mb-1 text-foreground">Primary</label>
-                        <Input type="number" placeholder="Age" value={primaryAge} onChange={e => setPrimaryAge(e.target.value)} />
+                        <label className="block text-sm mb-1 text-foreground">主申请人</label>
+                        <Input type="number" placeholder="年龄" value={primaryAge} onChange={e => setPrimaryAge(e.target.value)} />
                     </div>
                     <div className="flex-1">
-                        <label className="block text-sm mb-1 text-foreground">Spouse</label>
-                        <Input type="number" placeholder="Age (Optional)" value={spouseAge} onChange={e => setSpouseAge(e.target.value)} />
+                        <label className="block text-sm mb-1 text-foreground">配偶</label>
+                        <Input type="number" placeholder="年龄（可选）" value={spouseAge} onChange={e => setSpouseAge(e.target.value)} />
                     </div>
                 </div>
 
                 {childAges.map((age, idx) => (
                     <div key={idx} className="flex gap-4 mb-4 items-end">
                         <div className="flex-1">
-                            <label className="block text-sm mb-1 text-foreground">Child {idx + 1}</label>
-                            <Input type="number" placeholder="Age" value={age} onChange={e => updateChildAge(idx, e.target.value)} />
+                            <label className="block text-sm mb-1 text-foreground">儿童 {idx + 1}</label>
+                            <Input type="number" placeholder="年龄" value={age} onChange={e => updateChildAge(idx, e.target.value)} />
                         </div>
                         <button onClick={() => removeChild(idx)} className="bg-transparent border-none text-destructive cursor-pointer p-2">
                             <Trash size={18} />
@@ -116,7 +116,7 @@ const TravelDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => voi
                     onClick={handleAddChild}
                     className="mb-6 flex items-center gap-2"
                 >
-                    <Plus size={16} /> 添加儿童 (Add Child)
+                    <Plus size={16} /> 添加儿童
                 </Button>
 
                 <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
@@ -133,7 +133,7 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
     const [phone, setPhone] = useState('');
 
     // Insured State
-    const [primaryName, setPrimaryName] = useState({ first: 'Given Names', last: 'Surname', dob: '', gender: '', govId: '' });
+    const [primaryName, setPrimaryName] = useState({ first: '', last: '', dob: '', gender: '', govId: '' });
     const [spouseName, setSpouseName] = useState({ first: '', last: '', dob: '', gender: '', govId: '' });
     const [childNames, setChildNames] = useState<any[]>(travelData?.childAges?.map(() => ({ first: '', last: '', dob: '', gender: '', govId: '' })) || []);
 
@@ -161,15 +161,15 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
 
                 {/* Contact Information */}
                 <div className="mb-8">
-                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Contact Information</h4>
-                    <p className="text-xs text-muted-foreground mb-4">Use your best email and phone, we'll send your policy and alerts here.</p>
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">联系方式</h4>
+                    <p className="text-xs text-muted-foreground mb-4">请填写您的邮箱和电话，我们将通过此方式发送保单和通知。</p>
                     <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
                          <div>
-                            <label className="block text-sm mb-1 text-foreground font-medium">Email</label>
+                            <label className="block text-sm mb-1 text-foreground font-medium">邮箱</label>
                             <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
                          </div>
                          <div>
-                            <label className="block text-sm mb-1 text-foreground font-medium">Phone Number</label>
+                            <label className="block text-sm mb-1 text-foreground font-medium">电话号码</label>
                             <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
                          </div>
                     </div>
@@ -177,57 +177,57 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
 
                 {/* Insured(s) Information */}
                 <div className="mb-8">
-                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Insured(s) Information</h4>
-                    <p className="text-xs text-muted-foreground mb-4">Enter each insured's information to secure their coverage.</p>
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">投保人信息</h4>
+                    <p className="text-xs text-muted-foreground mb-4">请填写每位投保人的信息以确保承保。</p>
 
                     <div className="bg-white p-6 rounded-xl border border-input mb-4">
-                        <Badge className="mb-4">Primary</Badge>
+                        <Badge className="mb-4">主申请人</Badge>
                         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">First & Middle Name</label>
+                                <label className="block text-sm mb-1 text-foreground font-medium">名（First & Middle Name）</label>
                                 <Input type="text" value={primaryName.first} onChange={e => setPrimaryName({...primaryName, first: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Last Name</label>
+                                <label className="block text-sm mb-1 text-foreground font-medium">姓（Last Name）</label>
                                 <Input type="text" value={primaryName.last} onChange={e => setPrimaryName({...primaryName, last: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label>
+                                <label className="block text-sm mb-1 text-foreground font-medium">出生日期</label>
                                 <Input type="date" value={primaryName.dob} onChange={e => setPrimaryName({...primaryName, dob: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Gender</label>
+                                <label className="block text-sm mb-1 text-foreground font-medium">性别</label>
                                 <select value={primaryName.gender} onChange={e => setPrimaryName({...primaryName, gender: e.target.value})} className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                                    <option value="">Select</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
+                                    <option value="">请选择</option>
+                                    <option value="Male">男</option>
+                                    <option value="Female">女</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Government Issued ID Number</label>
-                                <Input type="text" placeholder="Optional" value={primaryName.govId} onChange={e => setPrimaryName({...primaryName, govId: e.target.value})} />
+                                <label className="block text-sm mb-1 text-foreground font-medium">证件号码</label>
+                                <Input type="text" placeholder="可选" value={primaryName.govId} onChange={e => setPrimaryName({...primaryName, govId: e.target.value})} />
                             </div>
                         </div>
                     </div>
 
                     {travelData?.spouseAge && (
                         <div className="bg-white p-6 rounded-xl border border-input mb-4">
-                            <Badge className="mb-4">Spouse</Badge>
+                            <Badge className="mb-4">配偶</Badge>
                             <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">First Name</label><Input type="text" value={spouseName.first} onChange={e => setSpouseName({...spouseName, first: e.target.value})} /></div>
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Last Name</label><Input type="text" value={spouseName.last} onChange={e => setSpouseName({...spouseName, last: e.target.value})} /></div>
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label><Input type="date" value={spouseName.dob} onChange={e => setSpouseName({...spouseName, dob: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">名</label><Input type="text" value={spouseName.first} onChange={e => setSpouseName({...spouseName, first: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">姓</label><Input type="text" value={spouseName.last} onChange={e => setSpouseName({...spouseName, last: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">出生日期</label><Input type="date" value={spouseName.dob} onChange={e => setSpouseName({...spouseName, dob: e.target.value})} /></div>
                             </div>
                         </div>
                     )}
 
                     {travelData?.childAges?.map((age: string, idx: number) => (
                         <div key={idx} className="bg-white p-6 rounded-xl border border-input mb-4">
-                            <Badge className="mb-4">Child {idx + 1} (Age: {age})</Badge>
+                            <Badge className="mb-4">儿童 {idx + 1}（年龄: {age}）</Badge>
                             <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">First Name</label><Input type="text" value={childNames[idx]?.first} onChange={e => updateChild(idx, 'first', e.target.value)} /></div>
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Last Name</label><Input type="text" value={childNames[idx]?.last} onChange={e => updateChild(idx, 'last', e.target.value)} /></div>
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label><Input type="date" value={childNames[idx]?.dob} onChange={e => updateChild(idx, 'dob', e.target.value)} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">名</label><Input type="text" value={childNames[idx]?.first} onChange={e => updateChild(idx, 'first', e.target.value)} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">姓</label><Input type="text" value={childNames[idx]?.last} onChange={e => updateChild(idx, 'last', e.target.value)} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">出生日期</label><Input type="date" value={childNames[idx]?.dob} onChange={e => updateChild(idx, 'dob', e.target.value)} /></div>
                             </div>
                         </div>
                     ))}
@@ -235,54 +235,54 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
 
                 {/* Residence Address */}
                 <div className="mb-8">
-                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Residence Address</h4>
-                    <p className="text-xs text-muted-foreground mb-4">Tell us the address where you live and have a primary residence.</p>
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">居住地址</h4>
+                    <p className="text-xs text-muted-foreground mb-4">请填写您的主要居住地址。</p>
                     <div className="flex flex-col gap-4">
                          <div>
-                            <label className="block text-sm mb-1 text-foreground font-medium">Country</label>
+                            <label className="block text-sm mb-1 text-foreground font-medium">国家</label>
                             <Input type="text" value={residence.country} onChange={e => setResidence({...residence, country: e.target.value})} />
                          </div>
                          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Address 1</label>
+                                <label className="block text-sm mb-1 text-foreground font-medium">地址 1</label>
                                 <Input type="text" value={residence.addr1} onChange={e => setResidence({...residence, addr1: e.target.value})} />
                             </div>
                             <div>
-                                <label className="block text-sm mb-1 text-foreground font-medium">Address 2 (Apt/Suite #)</label>
-                                <Input type="text" placeholder="Optional" value={residence.addr2} onChange={e => setResidence({...residence, addr2: e.target.value})} />
+                                <label className="block text-sm mb-1 text-foreground font-medium">地址 2（公寓/套房号）</label>
+                                <Input type="text" placeholder="可选" value={residence.addr2} onChange={e => setResidence({...residence, addr2: e.target.value})} />
                             </div>
                          </div>
                          <div className="grid grid-cols-3 gap-4">
-                            <div><label className="block text-sm mb-1 text-foreground font-medium">City</label><Input type="text" value={residence.city} onChange={e => setResidence({...residence, city: e.target.value})} /></div>
-                            <div><label className="block text-sm mb-1 text-foreground font-medium">State/Province/Region</label><Input type="text" value={residence.state} onChange={e => setResidence({...residence, state: e.target.value})} /></div>
-                            <div><label className="block text-sm mb-1 text-foreground font-medium">Postal Code</label><Input type="text" value={residence.zip} onChange={e => setResidence({...residence, zip: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">城市</label><Input type="text" value={residence.city} onChange={e => setResidence({...residence, city: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">州/省</label><Input type="text" value={residence.state} onChange={e => setResidence({...residence, state: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">邮编</label><Input type="text" value={residence.zip} onChange={e => setResidence({...residence, zip: e.target.value})} /></div>
                          </div>
                     </div>
                 </div>
 
                 {/* Mailing Address */}
                 <div className="mb-8">
-                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Mailing Address</h4>
-                    <p className="text-xs text-muted-foreground mb-4">Tell us the address where you receive physical mail correspondence.</p>
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">邮寄地址</h4>
+                    <p className="text-xs text-muted-foreground mb-4">请填写您接收邮件的地址。</p>
                     <div className="flex gap-4 items-center mb-4">
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                             <input type="checkbox" checked={mailing.sameAsResidence} onChange={e => setMailing({...mailing, sameAsResidence: e.target.checked})} />
-                            Same as Residence
+                            与居住地址相同
                         </label>
                     </div>
                     {!mailing.sameAsResidence && (
                         <div className="flex flex-col gap-4">
-                            <div><label className="block text-sm mb-1 text-foreground font-medium">Country</label><Input type="text" value={mailing.country} onChange={e => setMailing({...mailing, country: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">国家</label><Input type="text" value={mailing.country} onChange={e => setMailing({...mailing, country: e.target.value})} /></div>
                             <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Address 1</label><Input type="text" value={mailing.addr1} onChange={e => setMailing({...mailing, addr1: e.target.value})} /></div>
-                                <div><label className="block text-sm mb-1 text-foreground font-medium">Address 2</label><Input type="text" value={mailing.addr2} onChange={e => setMailing({...mailing, addr2: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">地址 1</label><Input type="text" value={mailing.addr1} onChange={e => setMailing({...mailing, addr1: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">地址 2</label><Input type="text" value={mailing.addr2} onChange={e => setMailing({...mailing, addr2: e.target.value})} /></div>
                             </div>
                         </div>
                     )}
                 </div>
 
                 <Button className="w-full h-12 text-base font-semibold" onClick={handleSubmit} disabled={!isValid}>
-                    提交承保信息 (Submit Enrollment)
+                    提交承保信息
                 </Button>
             </CardContent>
         </Card>
@@ -299,33 +299,33 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
 
     const handleSubmit = () => {
         if (!isValid) return;
-        onSubmit(`支付已完成 (Credit Card Payment Successful)`);
+        onSubmit(`支付已完成`);
     };
 
     return (
         <Card className="animate-fade-in mt-6 bg-slate-50 shadow-md">
             <CardContent className="pt-6">
-                <h3 className="text-primary mb-6 text-xl font-serif">安全支付 (Secure Checkout)</h3>
+                <h3 className="text-primary mb-6 text-xl font-serif">安全支付</h3>
                 <div className="mb-6 p-5 bg-white rounded-xl border border-input">
                     <div className="flex justify-between mb-2 items-center">
-                        <span className="font-semibold text-foreground">Total Amount</span>
+                        <span className="font-semibold text-foreground">支付总额</span>
                         <span className="text-xl font-extrabold text-primary">{plan.price}</span>
                     </div>
-                    <div className="text-sm text-muted-foreground">Policy: {plan.name}</div>
+                    <div className="text-sm text-muted-foreground">保单: {plan.name}</div>
                 </div>
 
                 <div className="flex flex-col gap-4 mb-6">
                     <div>
-                        <label className="block text-sm mb-1 text-foreground font-medium">Name on Card *</label>
-                        <Input type="text" value={nameOnCard} onChange={e => setNameOnCard(e.target.value)} placeholder="John Doe" />
+                        <label className="block text-sm mb-1 text-foreground font-medium">持卡人姓名 *</label>
+                        <Input type="text" value={nameOnCard} onChange={e => setNameOnCard(e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-sm mb-1 text-foreground font-medium">Card Number *</label>
+                        <label className="block text-sm mb-1 text-foreground font-medium">卡号 *</label>
                         <Input type="text" value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="0000 0000 0000 0000" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm mb-1 text-foreground font-medium">Expiry Date *</label>
+                            <label className="block text-sm mb-1 text-foreground font-medium">有效期 *</label>
                             <Input type="text" value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY" />
                         </div>
                         <div>
@@ -336,7 +336,7 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
                 </div>
 
                 <Button className="w-full h-12 text-base font-semibold" onClick={handleSubmit} disabled={!isValid}>
-                    确认支付 (Pay Now)
+                    确认支付
                 </Button>
             </CardContent>
         </Card>
@@ -382,6 +382,7 @@ const QuotePage: React.FC = () => {
 
     const [input, setInput] = useState('');
     const [isBotTyping, setIsBotTyping] = useState(false);
+    const [showPlusMenu, setShowPlusMenu] = useState(false);
     const [chatStage, setChatStage] = useState(1);
     const bottomRef = useRef<HTMLDivElement>(null);
     const [travelData, setTravelData] = useState<any>(null);
@@ -653,11 +654,11 @@ const QuotePage: React.FC = () => {
                 </p>
             </div>
 
-            <div className="flex-1 flex flex-col bg-slate-50/50 border-t border-slate-100 overflow-hidden">
-                <div className="flex-1 p-8 overflow-y-auto flex flex-col gap-6">
+            <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                <div className="flex-1 px-4 py-6 overflow-y-auto flex flex-col gap-5">
                     {messages.map((msg) => (
-                        <div key={msg.id} className={`flex w-full max-w-[900px] mx-auto flex-col mb-6 ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
-                            <div className={`flex flex-col gap-4 break-words text-foreground text-base leading-relaxed ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-slate-100 px-6 py-5 rounded-3xl'}`}>
+                        <div key={msg.id} className={`flex w-full max-w-[768px] mx-auto flex-col ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
+                            <div className={`flex flex-col gap-4 break-words text-[#0d0d0d] text-[15px] leading-[1.7] ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-[#f4f4f4] px-5 py-4 rounded-3xl'}`}>
                                 <div>
                                     {msg.text}
                                     {msg.imageUrl && (
@@ -673,7 +674,7 @@ const QuotePage: React.FC = () => {
                                         <CardContent className="pt-6">
                                             <div className="mb-4">
                                                 <label className="block mb-2 font-medium text-sm text-foreground">
-                                                    国籍 (Citizenship)
+                                                    国籍
                                                 </label>
                                                 <select
                                                     value={citizenship}
@@ -687,7 +688,7 @@ const QuotePage: React.FC = () => {
 
                                             <div className="mb-6">
                                                 <label className="block mb-2 font-medium text-sm text-foreground">
-                                                    目前居住地 (Residence Country)
+                                                    目前居住地
                                                 </label>
                                                 <select
                                                     value={residence}
@@ -812,7 +813,7 @@ const QuotePage: React.FC = () => {
                     <div ref={bottomRef} />
                 </div>
 
-                <div className="py-5 px-8 bg-white border-t border-input flex gap-4 items-center">
+                <div className="px-4 py-3 bg-white relative max-w-[768px] mx-auto w-full">
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -820,30 +821,48 @@ const QuotePage: React.FC = () => {
                         accept="image/*"
                         className="hidden"
                     />
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isBotTyping}
-                        className={`bg-transparent border-none text-muted-foreground cursor-pointer flex items-center justify-center transition-colors hover:text-primary ${isBotTyping ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        title="上传图片文件"
-                    >
-                        <ImageIcon size={26} strokeWidth={1.5} />
-                    </button>
-                    <input
-                        type="text"
-                        placeholder="随时回复顾问..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                        disabled={isBotTyping}
-                        className={`flex-1 py-4 px-6 border border-input rounded-full outline-none text-base bg-muted transition-all duration-300 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isBotTyping ? 'opacity-60' : ''}`}
-                    />
-                    <Button
-                        onClick={() => handleSend()}
-                        disabled={isBotTyping || !input.trim()}
-                        className="rounded-full px-8 h-[52px]"
-                    >
-                        发送 <Send size={18} className="ml-2" />
-                    </Button>
+                    {/* Plus menu popover */}
+                    {showPlusMenu && (
+                        <div className="absolute bottom-full left-4 mb-2 bg-white rounded-xl shadow-lg border border-[#e3e3e3] py-1.5 min-w-[160px] z-10">
+                            <button
+                                onClick={() => { fileInputRef.current?.click(); setShowPlusMenu(false); }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-[#2d2d2d] hover:bg-[#f5f5f5] transition-colors"
+                            >
+                                <ImageIcon size={16} className="text-[#6e6e6e]" />
+                                添加图片
+                            </button>
+                        </div>
+                    )}
+                    <div className={`flex items-center gap-1 rounded-full border border-[#e3e3e3] bg-white px-1.5 py-1 transition-all ${isBotTyping ? 'opacity-60' : ''}`}>
+                        <button
+                            onClick={() => setShowPlusMenu(!showPlusMenu)}
+                            disabled={isBotTyping}
+                            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[#b4b4b4] hover:text-[#2d2d2d] hover:bg-[#f0f0f0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Plus size={20} strokeWidth={2} />
+                        </button>
+                        <input
+                            type="text"
+                            placeholder="输入任何问题..."
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                            onFocus={() => setShowPlusMenu(false)}
+                            disabled={isBotTyping}
+                            className="flex-1 bg-transparent border-none outline-none text-sm py-2 text-[#2d2d2d] placeholder:text-[#b4b4b4]"
+                        />
+                        <button
+                            onClick={() => handleSend()}
+                            disabled={isBotTyping || !input.trim()}
+                            className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                                input.trim() && !isBotTyping
+                                    ? 'bg-[#0d0d0d] text-white hover:bg-[#2d2d2d]'
+                                    : 'bg-[#e8e8e8] text-[#c8c8c8] cursor-default'
+                            }`}
+                        >
+                            <ArrowUp size={16} strokeWidth={2.5} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
