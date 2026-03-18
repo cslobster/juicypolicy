@@ -49,9 +49,9 @@ const LandingPage: React.FC = () => {
 
     return (
         <div className="animate-in fade-in duration-500">
-            <section className="relative bg-gradient-to-b from-slate-50 via-white to-slate-100 min-h-[calc(100vh-4rem)] overflow-hidden pb-20">
+            <section className="relative bg-gradient-to-b from-slate-50 via-white to-slate-100 min-h-[calc(100vh-4rem)] overflow-hidden pb-6">
                 {/* Hero top */}
-                <div className="flex justify-between max-w-6xl mx-auto px-6 pt-12">
+                <div className="flex justify-between max-w-6xl mx-auto px-6 pt-8">
                     <div className="flex-1 max-w-2xl pt-4">
                         <p className="text-sm font-medium text-muted-foreground tracking-wide mb-2">
                             欢迎来到鲜橙保险®
