@@ -1,10 +1,15 @@
 
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import LandingPage from './pages/LandingPage';
 import QuotePage from './pages/QuotePage';
 import LoginPage from './pages/LoginPage';
+
+const QuotePageWrapper = () => {
+  const location = useLocation();
+  return <QuotePage key={location.search} />;
+};
 
 function App() {
   return (
@@ -15,7 +20,7 @@ function App() {
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/quote" element={<QuotePage />} />
+              <Route path="/quote" element={<QuotePageWrapper />} />
               <Route path="/login" element={<LoginPage />} />
             </Routes>
           </main>
