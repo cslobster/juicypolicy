@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Send, Activity, CheckCircle2, ShieldAlert, Star, Plus, Trash, Image as ImageIcon } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
 
 interface QuotePlan {
     id: string;
@@ -68,51 +72,58 @@ const TravelDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => voi
     };
 
     return (
-        <div className="animate-fade-in" style={{ marginTop: '1.5rem', padding: '1.5rem', background: 'white', borderRadius: '12px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-            <h4 style={{ marginBottom: '1rem', color: 'var(--color-primary)' }}>行程日期 (Coverage Dates)</h4>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Start Date</label>
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>End Date</label>
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
-                </div>
-            </div>
-
-            <h4 style={{ marginBottom: '1rem', color: 'var(--color-primary)' }}>投保人年龄 (Insureds' Ages)</h4>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Primary</label>
-                    <input type="number" placeholder="Age" value={primaryAge} onChange={e => setPrimaryAge(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Spouse</label>
-                    <input type="number" placeholder="Age (Optional)" value={spouseAge} onChange={e => setSpouseAge(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
-                </div>
-            </div>
-
-            {childAges.map((age, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1 }}>
-                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Child {idx + 1}</label>
-                        <input type="number" placeholder="Age" value={age} onChange={e => updateChildAge(idx, e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)' }} />
+        <Card className="animate-fade-in mt-6">
+            <CardContent className="pt-6">
+                <h4 className="mb-4 text-primary font-serif">行程日期 (Coverage Dates)</h4>
+                <div className="flex gap-4 mb-6">
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">Start Date</label>
+                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                     </div>
-                    <button onClick={() => removeChild(idx)} style={{ background: 'none', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '0.5rem' }}>
-                        <Trash size={18} />
-                    </button>
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">End Date</label>
+                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                    </div>
                 </div>
-            ))}
 
-            <button onClick={handleAddChild} className="btn" style={{ background: 'var(--color-bg-light)', color: 'var(--color-text-dark)', marginBottom: '1.5rem', padding: '0.5rem 1rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Plus size={16} /> 添加儿童 (Add Child)
-            </button>
+                <h4 className="mb-4 text-primary font-serif">投保人年龄 (Insureds' Ages)</h4>
+                <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">Primary</label>
+                        <Input type="number" placeholder="Age" value={primaryAge} onChange={e => setPrimaryAge(e.target.value)} />
+                    </div>
+                    <div className="flex-1">
+                        <label className="block text-sm mb-1 text-foreground">Spouse</label>
+                        <Input type="number" placeholder="Age (Optional)" value={spouseAge} onChange={e => setSpouseAge(e.target.value)} />
+                    </div>
+                </div>
 
-            <button className="btn btn-primary w-full" onClick={handleSubmit} disabled={!isValid} style={{ opacity: !isValid ? 0.5 : 1 }}>
-                生成报价
-            </button>
-        </div>
+                {childAges.map((age, idx) => (
+                    <div key={idx} className="flex gap-4 mb-4 items-end">
+                        <div className="flex-1">
+                            <label className="block text-sm mb-1 text-foreground">Child {idx + 1}</label>
+                            <Input type="number" placeholder="Age" value={age} onChange={e => updateChildAge(idx, e.target.value)} />
+                        </div>
+                        <button onClick={() => removeChild(idx)} className="bg-transparent border-none text-destructive cursor-pointer p-2">
+                            <Trash size={18} />
+                        </button>
+                    </div>
+                ))}
+
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleAddChild}
+                    className="mb-6 flex items-center gap-2"
+                >
+                    <Plus size={16} /> 添加儿童 (Add Child)
+                </Button>
+
+                <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
+                    生成报价
+                </Button>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -120,12 +131,12 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
     // Contact State
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
-    
+
     // Insured State
     const [primaryName, setPrimaryName] = useState({ first: 'Given Names', last: 'Surname', dob: '', gender: '', govId: '' });
     const [spouseName, setSpouseName] = useState({ first: '', last: '', dob: '', gender: '', govId: '' });
     const [childNames, setChildNames] = useState<any[]>(travelData?.childAges?.map(() => ({ first: '', last: '', dob: '', gender: '', govId: '' })) || []);
-    
+
     // Address State
     const [residence, setResidence] = useState({ country: 'China', addr1: '', addr2: '', city: '', state: '', zip: '' });
     const [mailing, setMailing] = useState({ sameAsResidence: true, country: '', addr1: '', addr2: '', city: '', state: '', zip: '' });
@@ -143,148 +154,138 @@ const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmi
         onSubmit(`已填写入保信息: ${primaryName.first} ${primaryName.last}, 联系方式: ${email}, ${phone}`);
     };
 
-    const inputStyle = { width: '100%', padding: '0.65rem', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' };
-    const labelStyle = { display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: 'var(--color-text-dark)', fontWeight: 500 };
-    const sectionStyle = { marginBottom: '2rem' };
-    const titleStyle = { color: 'var(--color-primary)', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-border)', fontSize: '1.1rem' };
-    const gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' };
-
     return (
-        <div className="animate-fade-in" style={{ marginTop: '1.5rem', padding: '2rem', background: '#fafbfc', borderRadius: '16px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
-            <h3 style={{ color: 'var(--color-accent)', marginBottom: '1.5rem', fontSize: '1.25rem' }}>入保信息填写 - {plan.name}</h3>
-            
-            {/* Contact Information */}
-            <div style={sectionStyle}>
-                <h4 style={titleStyle}>Contact Information</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '1rem' }}>Use your best email and phone, we'll send your policy and alerts here.</p>
-                <div style={gridStyle}>
-                     <div>
-                        <label style={labelStyle}>Email</label>
-                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-                     </div>
-                     <div>
-                        <label style={labelStyle}>Phone Number</label>
-                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
-                     </div>
-                </div>
-            </div>
+        <Card className="animate-fade-in mt-6 bg-slate-50 shadow-md">
+            <CardContent className="pt-6">
+                <h3 className="text-primary mb-6 text-xl font-serif">入保信息填写 - {plan.name}</h3>
 
-            {/* Insured(s) Information */}
-            <div style={sectionStyle}>
-                <h4 style={titleStyle}>Insured(s) Information</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '1rem' }}>Enter each insured's information to secure their coverage.</p>
-                
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '1rem' }}>
-                    <div style={{ display: 'inline-block', background: 'var(--color-bg-light)', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
-                        Primary
-                    </div>
-                    <div style={gridStyle}>
-                        <div>
-                            <label style={labelStyle}>First & Middle Name</label>
-                            <input type="text" value={primaryName.first} onChange={e => setPrimaryName({...primaryName, first: e.target.value})} style={inputStyle} />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Last Name</label>
-                            <input type="text" value={primaryName.last} onChange={e => setPrimaryName({...primaryName, last: e.target.value})} style={inputStyle} />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Birth Date</label>
-                            <input type="date" value={primaryName.dob} onChange={e => setPrimaryName({...primaryName, dob: e.target.value})} style={inputStyle} />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Gender</label>
-                            <select value={primaryName.gender} onChange={e => setPrimaryName({...primaryName, gender: e.target.value})} style={inputStyle}>
-                                <option value="">Select</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Government Issued ID Number</label>
-                            <input type="text" placeholder="Optional" value={primaryName.govId} onChange={e => setPrimaryName({...primaryName, govId: e.target.value})} style={inputStyle} />
-                        </div>
+                {/* Contact Information */}
+                <div className="mb-8">
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Contact Information</h4>
+                    <p className="text-xs text-muted-foreground mb-4">Use your best email and phone, we'll send your policy and alerts here.</p>
+                    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                         <div>
+                            <label className="block text-sm mb-1 text-foreground font-medium">Email</label>
+                            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                         </div>
+                         <div>
+                            <label className="block text-sm mb-1 text-foreground font-medium">Phone Number</label>
+                            <Input type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                         </div>
                     </div>
                 </div>
 
-                {travelData?.spouseAge && (
-                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '1rem' }}>
-                        <div style={{ display: 'inline-block', background: 'var(--color-bg-light)', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
-                            Spouse
-                        </div>
-                        <div style={gridStyle}>
-                            <div><label style={labelStyle}>First Name</label><input type="text" value={spouseName.first} onChange={e => setSpouseName({...spouseName, first: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Last Name</label><input type="text" value={spouseName.last} onChange={e => setSpouseName({...spouseName, last: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Birth Date</label><input type="date" value={spouseName.dob} onChange={e => setSpouseName({...spouseName, dob: e.target.value})} style={inputStyle} /></div>
+                {/* Insured(s) Information */}
+                <div className="mb-8">
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Insured(s) Information</h4>
+                    <p className="text-xs text-muted-foreground mb-4">Enter each insured's information to secure their coverage.</p>
+
+                    <div className="bg-white p-6 rounded-xl border border-input mb-4">
+                        <Badge className="mb-4">Primary</Badge>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">First & Middle Name</label>
+                                <Input type="text" value={primaryName.first} onChange={e => setPrimaryName({...primaryName, first: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Last Name</label>
+                                <Input type="text" value={primaryName.last} onChange={e => setPrimaryName({...primaryName, last: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label>
+                                <Input type="date" value={primaryName.dob} onChange={e => setPrimaryName({...primaryName, dob: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Gender</label>
+                                <select value={primaryName.gender} onChange={e => setPrimaryName({...primaryName, gender: e.target.value})} className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                                    <option value="">Select</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Government Issued ID Number</label>
+                                <Input type="text" placeholder="Optional" value={primaryName.govId} onChange={e => setPrimaryName({...primaryName, govId: e.target.value})} />
+                            </div>
                         </div>
                     </div>
-                )}
 
-                {travelData?.childAges?.map((age: string, idx: number) => (
-                    <div key={idx} style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-border)', marginBottom: '1rem' }}>
-                        <div style={{ display: 'inline-block', background: 'var(--color-bg-light)', color: 'var(--color-primary)', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
-                            Child {idx + 1} (Age: {age})
+                    {travelData?.spouseAge && (
+                        <div className="bg-white p-6 rounded-xl border border-input mb-4">
+                            <Badge className="mb-4">Spouse</Badge>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">First Name</label><Input type="text" value={spouseName.first} onChange={e => setSpouseName({...spouseName, first: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Last Name</label><Input type="text" value={spouseName.last} onChange={e => setSpouseName({...spouseName, last: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label><Input type="date" value={spouseName.dob} onChange={e => setSpouseName({...spouseName, dob: e.target.value})} /></div>
+                            </div>
                         </div>
-                        <div style={gridStyle}>
-                            <div><label style={labelStyle}>First Name</label><input type="text" value={childNames[idx]?.first} onChange={e => updateChild(idx, 'first', e.target.value)} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Last Name</label><input type="text" value={childNames[idx]?.last} onChange={e => updateChild(idx, 'last', e.target.value)} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Birth Date</label><input type="date" value={childNames[idx]?.dob} onChange={e => updateChild(idx, 'dob', e.target.value)} style={inputStyle} /></div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    )}
 
-            {/* Residence Address */}
-            <div style={sectionStyle}>
-                <h4 style={titleStyle}>Residence Address</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '1rem' }}>Tell us the address where you live and have a primary residence.</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                     <div>
-                        <label style={labelStyle}>Country</label>
-                        <input type="text" value={residence.country} onChange={e => setResidence({...residence, country: e.target.value})} style={inputStyle} />
-                     </div>
-                     <div style={gridStyle}>
-                        <div>
-                            <label style={labelStyle}>Address 1</label>
-                            <input type="text" value={residence.addr1} onChange={e => setResidence({...residence, addr1: e.target.value})} style={inputStyle} />
+                    {travelData?.childAges?.map((age: string, idx: number) => (
+                        <div key={idx} className="bg-white p-6 rounded-xl border border-input mb-4">
+                            <Badge className="mb-4">Child {idx + 1} (Age: {age})</Badge>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">First Name</label><Input type="text" value={childNames[idx]?.first} onChange={e => updateChild(idx, 'first', e.target.value)} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Last Name</label><Input type="text" value={childNames[idx]?.last} onChange={e => updateChild(idx, 'last', e.target.value)} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Birth Date</label><Input type="date" value={childNames[idx]?.dob} onChange={e => updateChild(idx, 'dob', e.target.value)} /></div>
+                            </div>
                         </div>
-                        <div>
-                            <label style={labelStyle}>Address 2 (Apt/Suite #)</label>
-                            <input type="text" placeholder="Optional" value={residence.addr2} onChange={e => setResidence({...residence, addr2: e.target.value})} style={inputStyle} />
-                        </div>
-                     </div>
-                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                        <div><label style={labelStyle}>City</label><input type="text" value={residence.city} onChange={e => setResidence({...residence, city: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>State/Province/Region</label><input type="text" value={residence.state} onChange={e => setResidence({...residence, state: e.target.value})} style={inputStyle} /></div>
-                        <div><label style={labelStyle}>Postal Code</label><input type="text" value={residence.zip} onChange={e => setResidence({...residence, zip: e.target.value})} style={inputStyle} /></div>
-                     </div>
+                    ))}
                 </div>
-            </div>
-            
-            {/* Mailing Address */}
-            <div style={sectionStyle}>
-                <h4 style={titleStyle}>Mailing Address</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '1rem' }}>Tell us the address where you receive physical mail correspondence.</p>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={mailing.sameAsResidence} onChange={e => setMailing({...mailing, sameAsResidence: e.target.checked})} />
-                        Same as Residence
-                    </label>
-                </div>
-                {!mailing.sameAsResidence && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div><label style={labelStyle}>Country</label><input type="text" value={mailing.country} onChange={e => setMailing({...mailing, country: e.target.value})} style={inputStyle} /></div>
-                        <div style={gridStyle}>
-                            <div><label style={labelStyle}>Address 1</label><input type="text" value={mailing.addr1} onChange={e => setMailing({...mailing, addr1: e.target.value})} style={inputStyle} /></div>
-                            <div><label style={labelStyle}>Address 2</label><input type="text" value={mailing.addr2} onChange={e => setMailing({...mailing, addr2: e.target.value})} style={inputStyle} /></div>
-                        </div>
-                    </div>
-                )}
-            </div>
 
-            <button className="btn btn-primary w-full" onClick={handleSubmit} disabled={!isValid} style={{ padding: '0.85rem', fontSize: '1.05rem', fontWeight: 600, opacity: !isValid ? 0.5 : 1 }}>
-                提交承保信息 (Submit Enrollment)
-            </button>
-        </div>
+                {/* Residence Address */}
+                <div className="mb-8">
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Residence Address</h4>
+                    <p className="text-xs text-muted-foreground mb-4">Tell us the address where you live and have a primary residence.</p>
+                    <div className="flex flex-col gap-4">
+                         <div>
+                            <label className="block text-sm mb-1 text-foreground font-medium">Country</label>
+                            <Input type="text" value={residence.country} onChange={e => setResidence({...residence, country: e.target.value})} />
+                         </div>
+                         <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Address 1</label>
+                                <Input type="text" value={residence.addr1} onChange={e => setResidence({...residence, addr1: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm mb-1 text-foreground font-medium">Address 2 (Apt/Suite #)</label>
+                                <Input type="text" placeholder="Optional" value={residence.addr2} onChange={e => setResidence({...residence, addr2: e.target.value})} />
+                            </div>
+                         </div>
+                         <div className="grid grid-cols-3 gap-4">
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">City</label><Input type="text" value={residence.city} onChange={e => setResidence({...residence, city: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">State/Province/Region</label><Input type="text" value={residence.state} onChange={e => setResidence({...residence, state: e.target.value})} /></div>
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">Postal Code</label><Input type="text" value={residence.zip} onChange={e => setResidence({...residence, zip: e.target.value})} /></div>
+                         </div>
+                    </div>
+                </div>
+
+                {/* Mailing Address */}
+                <div className="mb-8">
+                    <h4 className="text-primary mb-4 pb-2 border-b border-input text-lg font-serif">Mailing Address</h4>
+                    <p className="text-xs text-muted-foreground mb-4">Tell us the address where you receive physical mail correspondence.</p>
+                    <div className="flex gap-4 items-center mb-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={mailing.sameAsResidence} onChange={e => setMailing({...mailing, sameAsResidence: e.target.checked})} />
+                            Same as Residence
+                        </label>
+                    </div>
+                    {!mailing.sameAsResidence && (
+                        <div className="flex flex-col gap-4">
+                            <div><label className="block text-sm mb-1 text-foreground font-medium">Country</label><Input type="text" value={mailing.country} onChange={e => setMailing({...mailing, country: e.target.value})} /></div>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Address 1</label><Input type="text" value={mailing.addr1} onChange={e => setMailing({...mailing, addr1: e.target.value})} /></div>
+                                <div><label className="block text-sm mb-1 text-foreground font-medium">Address 2</label><Input type="text" value={mailing.addr2} onChange={e => setMailing({...mailing, addr2: e.target.value})} /></div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <Button className="w-full h-12 text-base font-semibold" onClick={handleSubmit} disabled={!isValid}>
+                    提交承保信息 (Submit Enrollment)
+                </Button>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -293,7 +294,7 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
     const [cardNumber, setCardNumber] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
-    
+
     const isValid = nameOnCard && cardNumber && expiry && cvv;
 
     const handleSubmit = () => {
@@ -301,45 +302,44 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
         onSubmit(`支付已完成 (Credit Card Payment Successful)`);
     };
 
-    const inputStyle = { width: '100%', padding: '0.65rem', border: '1px solid var(--color-border)', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' };
-    const labelStyle = { display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', color: 'var(--color-text-dark)', fontWeight: 500 };
-
     return (
-        <div className="animate-fade-in" style={{ marginTop: '1.5rem', padding: '2rem', background: '#fafbfc', borderRadius: '16px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-md)' }}>
-            <h3 style={{ color: 'var(--color-accent)', marginBottom: '1.5rem', fontSize: '1.25rem' }}>安全支付 (Secure Checkout)</h3>
-            <div style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'white', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--color-text-dark)' }}>Total Amount</span>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-accent)' }}>{plan.price}</span>
+        <Card className="animate-fade-in mt-6 bg-slate-50 shadow-md">
+            <CardContent className="pt-6">
+                <h3 className="text-primary mb-6 text-xl font-serif">安全支付 (Secure Checkout)</h3>
+                <div className="mb-6 p-5 bg-white rounded-xl border border-input">
+                    <div className="flex justify-between mb-2 items-center">
+                        <span className="font-semibold text-foreground">Total Amount</span>
+                        <span className="text-xl font-extrabold text-primary">{plan.price}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">Policy: {plan.name}</div>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-main)' }}>Policy: {plan.name}</div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                    <label style={labelStyle}>Name on Card *</label>
-                    <input type="text" value={nameOnCard} onChange={e => setNameOnCard(e.target.value)} style={inputStyle} placeholder="John Doe" />
-                </div>
-                <div>
-                    <label style={labelStyle}>Card Number *</label>
-                    <input type="text" value={cardNumber} onChange={e => setCardNumber(e.target.value)} style={inputStyle} placeholder="0000 0000 0000 0000" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div className="flex flex-col gap-4 mb-6">
                     <div>
-                        <label style={labelStyle}>Expiry Date *</label>
-                        <input type="text" value={expiry} onChange={e => setExpiry(e.target.value)} style={inputStyle} placeholder="MM/YY" />
+                        <label className="block text-sm mb-1 text-foreground font-medium">Name on Card *</label>
+                        <Input type="text" value={nameOnCard} onChange={e => setNameOnCard(e.target.value)} placeholder="John Doe" />
                     </div>
                     <div>
-                        <label style={labelStyle}>CVV *</label>
-                        <input type="text" value={cvv} onChange={e => setCvv(e.target.value)} style={inputStyle} placeholder="123" />
+                        <label className="block text-sm mb-1 text-foreground font-medium">Card Number *</label>
+                        <Input type="text" value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="0000 0000 0000 0000" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm mb-1 text-foreground font-medium">Expiry Date *</label>
+                            <Input type="text" value={expiry} onChange={e => setExpiry(e.target.value)} placeholder="MM/YY" />
+                        </div>
+                        <div>
+                            <label className="block text-sm mb-1 text-foreground font-medium">CVV *</label>
+                            <Input type="text" value={cvv} onChange={e => setCvv(e.target.value)} placeholder="123" />
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <button className="btn btn-primary w-full" onClick={handleSubmit} disabled={!isValid} style={{ padding: '0.85rem', fontSize: '1.05rem', fontWeight: 600, opacity: !isValid ? 0.5 : 1 }}>
-                确认支付 (Pay Now)
-            </button>
-        </div>
+                <Button className="w-full h-12 text-base font-semibold" onClick={handleSubmit} disabled={!isValid}>
+                    确认支付 (Pay Now)
+                </Button>
+            </CardContent>
+        </Card>
     );
 };
 
@@ -428,7 +428,7 @@ const QuotePage: React.FC = () => {
                     newBotMsg = {
                         id: Date.now().toString(),
                         sender: 'bot',
-                        text: `日期及人员信息确认完毕。AI 正在实时为您从市场抓取最优的旅行险产品对比...`
+                        text: `日期及人员信息确认完毕。鲜橙保险正在实时为您从市场抓取最优的旅行险产品对比...`
                     };
                     setChatStage(4);
                     setTimeout(() => triggerQuoteGeneration('travel'), 2000);
@@ -446,7 +446,7 @@ const QuotePage: React.FC = () => {
                     newBotMsg = {
                         id: Date.now().toString(),
                         sender: 'bot',
-                        text: `🎉 支付成功！恭喜，您已成功完成投保。电子保单将在几分钟内发送至您的邮箱。感谢您使用智能比价 AI！`
+                        text: `🎉 支付成功！恭喜，您已成功完成投保。电子保单将在几分钟内发送至您的邮箱。感谢您使用鲜橙保险！`
                     };
                     setChatStage(7);
                 } else {
@@ -467,7 +467,7 @@ const QuotePage: React.FC = () => {
                     newBotMsg = {
                         id: Date.now().toString(),
                         sender: 'bot',
-                        text: `已记录偏好【${userText}】。AI 正在生成您的专属比价结果...`
+                        text: `已记录偏好【${userText}】。鲜橙保险正在生成您的专属比价结果...`
                     };
                     setChatStage(3);
                     setTimeout(() => triggerQuoteGeneration('general'), 2000);
@@ -495,7 +495,7 @@ const QuotePage: React.FC = () => {
                         id: 'plan_1',
                         name: 'Patriot 基础版',
                         underwriter: 'SiriusPoint 财险',
-                        price: '¥220',
+                        price: '$45',
                         period: '14天',
                         policyMax: '$50,000',
                         deductible: '$250',
@@ -506,7 +506,7 @@ const QuotePage: React.FC = () => {
                         name: 'Atlas America 全面计划',
                         tag: '最畅销',
                         underwriter: 'Lloyds of London',
-                        price: '¥680',
+                        price: '$138',
                         period: '14天',
                         policyMax: '$1,000,000',
                         deductible: '$0 (网络内)',
@@ -519,10 +519,10 @@ const QuotePage: React.FC = () => {
                         id: 'plan_gen_1',
                         name: '经济实惠型',
                         underwriter: '官方直属',
-                        price: '¥998',
+                        price: '$199',
                         period: '每年',
-                        policyMax: '100万人民币',
-                        deductible: '1万元',
+                        policyMax: '$1,000,000',
+                        deductible: '$10,000',
                         features: ['基础保障范围', '核心理赔覆盖']
                     }
                 ];
@@ -542,7 +542,7 @@ const QuotePage: React.FC = () => {
     const handlePurchase = (plan: QuotePlan) => {
         setIsBotTyping(true);
         setStep(4);
-        
+
         // Remove options and widgets from previous messages
         const updatedMessages = messages.map(msg => ({
             ...msg,
@@ -556,7 +556,7 @@ const QuotePage: React.FC = () => {
 
         setTimeout(() => {
             setIsBotTyping(false);
-            
+
             if (selectedType === '旅行保险') {
                 setChatStage(5);
                 setMessages(prev => [...prev, {
@@ -620,16 +620,24 @@ const QuotePage: React.FC = () => {
     };
 
     return (
-        <div className="quote-container animate-slide-up" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', width: '100%', maxWidth: '100vw', margin: '0', borderRadius: '0', border: 'none', padding: '0', boxShadow: 'none' }}>
+        <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-4rem)] w-full">
 
-            <div style={{ padding: '2rem 2rem 0' }}>
-                <div className="progress-bar">
+            <div className="px-8 pt-8">
+                <div className="flex justify-between items-start relative mb-8">
+                    {/* Connector line */}
+                    <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-200 z-0" />
                     {steps.map((s) => (
-                        <div key={s.num} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2 }}>
-                            <div className={`progress-step ${step > s.num ? 'completed' : ''} ${step === s.num ? 'active' : ''}`}>
+                        <div key={s.num} className="flex flex-col items-center z-[2]">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all ${
+                                step > s.num
+                                    ? 'bg-primary border-primary text-primary-foreground'
+                                    : step === s.num
+                                        ? 'bg-white border-primary text-primary shadow-[0_0_0_4px_rgba(59,130,246,0.1)]'
+                                        : 'bg-white border-slate-200 text-muted-foreground'
+                            }`}>
                                 {s.num}
                             </div>
-                            <span style={{ fontSize: '0.75rem', marginTop: '0.5rem', fontWeight: step === s.num ? 600 : 400, color: step === s.num ? 'var(--color-text-dark)' : 'var(--color-text-main)' }}>
+                            <span className={`text-xs mt-2 ${step === s.num ? 'font-semibold text-foreground' : 'font-normal text-muted-foreground'}`}>
                                 {s.label}
                             </span>
                         </div>
@@ -637,112 +645,69 @@ const QuotePage: React.FC = () => {
                 </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-                <h2 className="quote-title" style={{ marginBottom: '0.5rem' }}>多维比价 - {selectedType}</h2>
-                <p style={{ color: 'var(--color-text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                    <Activity size={16} color="var(--color-accent)" />
+            <div className="text-center mb-4">
+                <h2 className="text-2xl font-semibold mb-2 font-serif">多维比价 - {selectedType}</h2>
+                <p className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
+                    <Activity size={16} className="text-primary" />
                     基于市场大数据的智能推荐
                 </p>
             </div>
 
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                background: 'var(--color-bg-light)',
-                borderTop: '1px solid var(--color-border)',
-                overflow: 'hidden'
-            }}>
-                <div style={{
-                    flex: 1,
-                    padding: '2rem',
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1.5rem'
-                }}>
+            <div className="flex-1 flex flex-col bg-slate-50/50 border-t border-slate-100 overflow-hidden">
+                <div className="flex-1 p-8 overflow-y-auto flex flex-col gap-6">
                     {messages.map((msg) => (
-                        <div key={msg.id} style={{
-                            display: 'flex',
-                            width: '100%',
-                            maxWidth: '900px',
-                            margin: '0 auto',
-                            flexDirection: 'column',
-                            alignItems: msg.sender === 'bot' ? 'flex-start' : 'flex-end',
-                            marginBottom: '1.5rem'
-                        }}>
-                            <div style={{
-                                maxWidth: msg.sender === 'bot' ? '100%' : '85%',
-                                background: msg.sender === 'bot' ? 'transparent' : '#f4f4f4',
-                                padding: msg.sender === 'bot' ? '0' : '1.25rem 1.5rem',
-                                borderRadius: msg.sender === 'bot' ? '0' : '24px',
-                                color: 'var(--color-text-dark)',
-                                fontSize: '1.05rem',
-                                lineHeight: '1.6',
-                                wordBreak: 'break-word',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '1rem' // gap for widgets/options
-                            }}>
+                        <div key={msg.id} className={`flex w-full max-w-[900px] mx-auto flex-col mb-6 ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
+                            <div className={`flex flex-col gap-4 break-words text-foreground text-base leading-relaxed ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-slate-100 px-6 py-5 rounded-3xl'}`}>
                                 <div>
                                     {msg.text}
                                     {msg.imageUrl && (
-                                        <div style={{ marginTop: '1.25rem' }}>
-                                            <img src={msg.imageUrl} alt="Uploaded" style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--color-border)' }} />
+                                        <div className="mt-5">
+                                            <img src={msg.imageUrl} alt="Uploaded" className="max-w-full max-h-[400px] rounded-lg border border-input" />
                                         </div>
                                     )}
                                 </div>
 
                                 {/* === INTERACTIVE COUNTRY SELECTOR WIDGET === */}
                                 {msg.interactiveWidget === 'country_selector' && (
-                                    <div className="animate-fade-in" style={{
-                                        marginTop: '0.5rem',
-                                        padding: '1.5rem',
-                                        background: 'white',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--color-border)',
-                                        boxShadow: 'var(--shadow-sm)'
-                                    }}>
-                                        <div style={{ marginBottom: '1rem' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-dark)' }}>
-                                                国籍 (Citizenship)
-                                            </label>
-                                            <select
-                                                value={citizenship}
-                                                onChange={(e) => setCitizenship(e.target.value)}
-                                                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '1rem', outline: 'none' }}
-                                            >
-                                                <option value="" disabled>请选择...</option>
-                                                {COUNTRIES.map(c => <option key={`cit-${c}`} value={c}>{c}</option>)}
-                                            </select>
-                                        </div>
+                                    <Card className="animate-fade-in mt-2">
+                                        <CardContent className="pt-6">
+                                            <div className="mb-4">
+                                                <label className="block mb-2 font-medium text-sm text-foreground">
+                                                    国籍 (Citizenship)
+                                                </label>
+                                                <select
+                                                    value={citizenship}
+                                                    onChange={(e) => setCitizenship(e.target.value)}
+                                                    className="w-full py-3 px-3 rounded-lg border border-input text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-background"
+                                                >
+                                                    <option value="" disabled>请选择...</option>
+                                                    {COUNTRIES.map(c => <option key={`cit-${c}`} value={c}>{c}</option>)}
+                                                </select>
+                                            </div>
 
-                                        <div style={{ marginBottom: '1.5rem' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text-dark)' }}>
-                                                目前居住地 (Residence Country)
-                                            </label>
-                                            <select
-                                                value={residence}
-                                                onChange={(e) => setResidence(e.target.value)}
-                                                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '1rem', outline: 'none' }}
-                                            >
-                                                <option value="" disabled>请选择...</option>
-                                                {COUNTRIES.map(c => <option key={`res-${c}`} value={c}>{c}</option>)}
-                                            </select>
-                                        </div>
+                                            <div className="mb-6">
+                                                <label className="block mb-2 font-medium text-sm text-foreground">
+                                                    目前居住地 (Residence Country)
+                                                </label>
+                                                <select
+                                                    value={residence}
+                                                    onChange={(e) => setResidence(e.target.value)}
+                                                    className="w-full py-3 px-3 rounded-lg border border-input text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-background"
+                                                >
+                                                    <option value="" disabled>请选择...</option>
+                                                    {COUNTRIES.map(c => <option key={`res-${c}`} value={c}>{c}</option>)}
+                                                </select>
+                                            </div>
 
-                                        <button
-                                            className="btn btn-primary w-full"
-                                            onClick={handleCountryWidgetSubmit}
-                                            disabled={!citizenship || !residence}
-                                            style={{
-                                                opacity: (!citizenship || !residence) ? 0.5 : 1,
-                                                cursor: (!citizenship || !residence) ? 'not-allowed' : 'pointer'
-                                            }}
-                                        >
-                                            提交信息
-                                        </button>
-                                    </div>
+                                            <Button
+                                                className="w-full"
+                                                onClick={handleCountryWidgetSubmit}
+                                                disabled={!citizenship || !residence}
+                                            >
+                                                提交信息
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
                                 )}
 
                                 {/* === TRAVEL DETAILS WIDGET === */}
@@ -752,121 +717,83 @@ const QuotePage: React.FC = () => {
 
                                 {/* === ENROLLMENT FORM WIDGET === */}
                                 {msg.interactiveWidget === 'enrollment_form' && msg.selectedPlanContext && (
-                                    <EnrollmentFormWidget 
-                                        plan={msg.selectedPlanContext} 
-                                        travelData={travelData} 
-                                        onSubmit={(text) => handleSend(text)} 
+                                    <EnrollmentFormWidget
+                                        plan={msg.selectedPlanContext}
+                                        travelData={travelData}
+                                        onSubmit={(text) => handleSend(text)}
                                     />
                                 )}
 
                                 {/* === PAYMENT CHECKOUT WIDGET === */}
                                 {msg.interactiveWidget === 'payment_checkout' && msg.selectedPlanContext && (
-                                    <PaymentCheckoutWidget 
-                                        plan={msg.selectedPlanContext} 
-                                        onSubmit={(text) => handleSend(text)} 
+                                    <PaymentCheckoutWidget
+                                        plan={msg.selectedPlanContext}
+                                        onSubmit={(text) => handleSend(text)}
                                     />
                                 )}
                             </div>
 
                             {/* === MULTI-QUOTE PRESENTATION === */}
                             {msg.quotesList && (
-                                <div className="quotes-grid animate-fade-in" style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '1.5rem',
-                                    marginTop: '0.5rem',
-                                    width: '100%',
-                                    padding: '0.5rem 0'
-                                }}>
+                                <div className="quotes-grid animate-fade-in flex flex-col gap-6 mt-2 w-full py-2">
                                     {msg.quotesList.map((plan) => (
-                                        <div key={plan.id} className="plan-card glass hover-lift" style={{
-                                            position: 'relative',
-                                            display: 'flex',
-                                            flexDirection: 'row',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            background: 'white',
-                                            border: plan.tag ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
-                                            borderRadius: '16px',
-                                            padding: '1.5rem 2rem',
-                                        }}>
+                                        <Card key={plan.id} className={`hover-lift relative flex flex-row justify-between items-center p-6 px-8 ${plan.tag ? 'border-2 border-primary' : ''}`}>
                                             {plan.tag && (
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    top: '-12px',
-                                                    left: '2rem',
-                                                    background: 'var(--color-accent)',
-                                                    color: 'white',
-                                                    padding: '0.25rem 1rem',
-                                                    borderRadius: '999px',
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    display: 'flex',
-                                                    gap: '0.25rem',
-                                                    alignItems: 'center',
-                                                    boxShadow: 'var(--shadow-sm)'
-                                                }}>
+                                                <Badge className="absolute -top-3 left-8 bg-primary text-primary-foreground shadow-sm flex gap-1 items-center">
                                                     <Star size={12} fill="white" /> {plan.tag}
-                                                </div>
+                                                </Badge>
                                             )}
 
-                                            <div style={{ flex: 1, paddingRight: '2rem' }}>
-                                                <h3 style={{ fontSize: '1.4rem', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>{plan.name}</h3>
-                                                <div style={{ color: 'var(--color-text-main)', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <div className="flex-1 pr-8">
+                                                <h3 className="text-2xl text-primary mb-1 font-serif">{plan.name}</h3>
+                                                <div className="text-muted-foreground text-sm mb-4 flex items-center gap-2">
                                                     <ShieldAlert size={14} /> 承保公司: <strong>{plan.underwriter}</strong>
                                                 </div>
 
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem', fontSize: '0.95rem' }}>
+                                                <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
                                                     <div>方案最高保额: <strong>{plan.policyMax}</strong></div>
                                                     <div>自付/免赔额: <strong>{plan.deductible}</strong></div>
                                                 </div>
 
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                                <div className="flex flex-wrap gap-3">
                                                     {plan.features.map((feature, idx) => (
-                                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', color: 'var(--color-text-dark)' }}>
-                                                            <CheckCircle2 size={14} color="var(--color-accent)" />
+                                                        <div key={idx} className="flex items-center gap-1 text-sm text-foreground">
+                                                            <CheckCircle2 size={14} className="text-primary" />
                                                             {feature}
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '180px', borderLeft: '1px solid var(--color-border)', paddingLeft: '2rem' }}>
-                                                <div style={{ color: 'var(--color-text-main)', fontSize: '0.9rem', marginBottom: '0.25rem' }}>预计保费</div>
-                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', color: 'var(--color-accent)', marginBottom: '1rem' }}>
-                                                    <span style={{ fontSize: '2.5rem', fontWeight: 800 }}>{plan.price}</span>
-                                                    <span style={{ fontWeight: 600 }}>/{plan.period}</span>
+                                            <div className="flex flex-col items-center justify-center min-w-[180px] border-l border-input pl-8">
+                                                <div className="text-muted-foreground text-sm mb-1">预计保费</div>
+                                                <div className="flex items-baseline gap-1 text-primary mb-4">
+                                                    <span className="text-4xl font-extrabold">{plan.price}</span>
+                                                    <span className="font-semibold">/{plan.period}</span>
                                                 </div>
-                                                <button
-                                                    className="btn btn-primary w-full"
-                                                    style={{ borderRadius: '999px', fontSize: '1rem' }}
+                                                <Button
+                                                    className="w-full rounded-full"
                                                     onClick={() => handlePurchase(plan)}
                                                 >
                                                     立即购买
-                                                </button>
+                                                </Button>
                                             </div>
-                                        </div>
+                                        </Card>
                                     ))}
                                 </div>
                             )}
 
                             {msg.options && (
-                                <div className="chat-options animate-fade-in" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                <div className="chat-options animate-fade-in flex flex-row flex-wrap gap-3 mt-2">
                                     {msg.options.map((opt, idx) => (
-                                        <button
+                                        <Button
                                             key={idx}
-                                            className="btn btn-outline"
+                                            variant="outline"
                                             onClick={() => handleSend(opt)}
-                                            style={{
-                                                borderRadius: '999px',
-                                                padding: '0.5rem 1.25rem',
-                                                fontSize: '0.9rem',
-                                                background: 'white',
-                                                boxShadow: 'var(--shadow-sm)'
-                                            }}
+                                            className="rounded-full bg-white shadow-sm"
                                         >
                                             {opt}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </div>
                             )}
@@ -874,48 +801,29 @@ const QuotePage: React.FC = () => {
                     ))}
 
                     {isBotTyping && (
-                        <div style={{ display: 'flex', width: '100%', maxWidth: '900px', margin: '0 auto', marginBottom: '2rem' }}>
-                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', height: '24px' }}>
-                                <div className="typing-dot" style={{ background: 'var(--color-text-main)' }}></div>
-                                <div className="typing-dot" style={{ background: 'var(--color-text-main)', animationDelay: '0.2s' }}></div>
-                                <div className="typing-dot" style={{ background: 'var(--color-text-main)', animationDelay: '0.4s' }}></div>
+                        <div className="flex w-full max-w-[900px] mx-auto mb-8">
+                            <div className="flex gap-1.5 items-center h-6">
+                                <div className="typing-dot bg-muted-foreground"></div>
+                                <div className="typing-dot bg-muted-foreground" style={{ animationDelay: '0.2s' }}></div>
+                                <div className="typing-dot bg-muted-foreground" style={{ animationDelay: '0.4s' }}></div>
                             </div>
                         </div>
                     )}
                     <div ref={bottomRef} />
                 </div>
 
-                <div style={{
-                    padding: '1.25rem 2rem',
-                    background: 'white',
-                    borderTop: '1px solid var(--color-border)',
-                    display: 'flex',
-                    gap: '1rem',
-                    alignItems: 'center'
-                }}>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileUpload} 
-                        accept="image/*" 
-                        style={{ display: 'none' }} 
+                <div className="py-5 px-8 bg-white border-t border-input flex gap-4 items-center">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept="image/*"
+                        className="hidden"
                     />
-                    <button 
+                    <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isBotTyping}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--color-text-main)',
-                            cursor: isBotTyping ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: isBotTyping ? 0.6 : 1,
-                            transition: 'color 0.2s',
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
-                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-main)'}
+                        className={`bg-transparent border-none text-muted-foreground cursor-pointer flex items-center justify-center transition-colors hover:text-primary ${isBotTyping ? 'opacity-60 cursor-not-allowed' : ''}`}
                         title="上传图片文件"
                     >
                         <ImageIcon size={26} strokeWidth={1.5} />
@@ -927,32 +835,15 @@ const QuotePage: React.FC = () => {
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                         disabled={isBotTyping}
-                        style={{
-                            flex: 1,
-                            padding: '1rem 1.5rem',
-                            border: '1px solid var(--color-border)',
-                            borderRadius: '999px',
-                            outline: 'none',
-                            fontSize: '1rem',
-                            backgroundColor: 'var(--color-bg-light)',
-                            transition: 'all 0.3s ease',
-                            opacity: isBotTyping ? 0.6 : 1
-                        }}
+                        className={`flex-1 py-4 px-6 border border-input rounded-full outline-none text-base bg-muted transition-all duration-300 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${isBotTyping ? 'opacity-60' : ''}`}
                     />
-                    <button
-                        className="btn btn-primary"
+                    <Button
                         onClick={() => handleSend()}
                         disabled={isBotTyping || !input.trim()}
-                        style={{
-                            borderRadius: '999px',
-                            padding: '0 2rem',
-                            height: '52px',
-                            opacity: (isBotTyping || !input.trim()) ? 0.6 : 1,
-                            cursor: (isBotTyping || !input.trim()) ? 'not-allowed' : 'pointer'
-                        }}
+                        className="rounded-full px-8 h-[52px]"
                     >
-                        发送 <Send size={18} style={{ marginLeft: '0.5rem' }} />
-                    </button>
+                        发送 <Send size={18} className="ml-2" />
+                    </Button>
                 </div>
             </div>
         </div>
