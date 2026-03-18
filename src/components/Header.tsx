@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, ChevronRight } from 'lucide-react';
+import { Citrus, ChevronRight } from 'lucide-react';
 
 const Header: React.FC = () => {
     return (
         <header className="header glass">
             <Link to="/" className="header-logo">
-                <Shield size={28} />
-                智能保险 (AInsurance)
+                <Citrus size={28} />
+                鲜橙保险
             </Link>
             <nav className="header-nav">
                 <Link to="/products" className="nav-link">产品</Link>

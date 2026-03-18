@@ -39,7 +39,7 @@ const LandingPage: React.FC = () => {
             <section className="prog-hero">
                 <div className="prog-hero-top">
                     <div className="prog-hero-left">
-                        <p className="prog-hero-welcome">欢迎来到智能保险®</p>
+                        <p className="prog-hero-welcome">欢迎来到鲜橙保险®</p>
                         <h1 className="prog-hero-title">更好的保障，<br />从这里开始</h1>
                     </div>
                 </div>
@@ -97,7 +97,7 @@ const LandingPage: React.FC = () => {
                 
                 <div className="prog-hero-actions">
                     <button className="prog-btn-outline">继续之前的报价 <ChevronRight size={16} /></button>
-                    <button className="prog-btn-outline">寻找代理人 <ChevronRight size={16} /></button>
+                    <button className="prog-btn-outline">寻找保险经纪 <ChevronRight size={16} /></button>
                 </div>
             </section>
         </div>
