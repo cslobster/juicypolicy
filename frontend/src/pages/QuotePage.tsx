@@ -192,7 +192,7 @@ const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; onBack: () => void; hi
                     <div className="flex h-20 items-center justify-center text-muted-foreground text-xs max-w-[768px] mx-auto">没有匹配的计划</div>
                 )}
                 <div className="flex items-center gap-1 py-1.5 max-w-[768px] mx-auto">
-                    <button onClick={onBack} className="px-2 py-0.5 text-xs rounded border border-gray-200 hover:bg-gray-50 mr-auto">重新报价</button>
+                    <button onClick={onBack} className="px-3 py-1 text-sm rounded-full bg-primary text-white hover:opacity-90 mr-auto">重新报价</button>
                     {totalPages > 1 && (<>
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                             className="px-2 py-0.5 text-xs rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">上一页</button>
