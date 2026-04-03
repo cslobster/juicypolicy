@@ -2,7 +2,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon, Search, X } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon, Search } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -52,7 +52,7 @@ const getPlanTypeBadgeClass = (type: string) => {
     }
 };
 
-const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; customerData: any; onBack: () => void; onEnroll: (plan: HealthPlan) => void; highlightedPlans?: string[]; selectedPlan: HealthPlan | null; onSelectPlan: (plan: HealthPlan | null) => void }> = ({ plans, customerData, onBack, onEnroll, highlightedPlans = [], selectedPlan, onSelectPlan }) => {
+const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; onBack: () => void; highlightedPlans?: string[]; selectedPlan: HealthPlan | null; onSelectPlan: (plan: HealthPlan | null) => void }> = ({ plans, onBack, highlightedPlans = [], selectedPlan, onSelectPlan }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [planTypeFilter, setPlanTypeFilter] = useState('all');
     const [networkFilter, setNetworkFilter] = useState('all');
@@ -141,7 +141,6 @@ const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; customerData: any; onB
                     <button onClick={() => { setSearchTerm(''); setPlanTypeFilter('all'); setNetworkFilter('all'); setCarrierFilter('all'); setSortBy('premium_asc'); }}
                         className="text-xs text-primary hover:underline shrink-0">清除</button>
                 )}
-                <Button variant="outline" size="sm" onClick={onBack} className="text-xs h-7 px-2 shrink-0">重新报价</Button>
             </div>
 
             {/* Table */}
@@ -192,8 +191,9 @@ const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; customerData: any; onB
                 {filteredPlans.length === 0 && (
                     <div className="flex h-20 items-center justify-center text-muted-foreground text-xs max-w-[768px] mx-auto">没有匹配的计划</div>
                 )}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-1 py-1.5 max-w-[768px] mx-auto">
+                <div className="flex items-center gap-1 py-1.5 max-w-[768px] mx-auto">
+                    <button onClick={onBack} className="px-2 py-0.5 text-xs rounded border border-gray-200 hover:bg-gray-50 mr-auto">重新报价</button>
+                    {totalPages > 1 && (<>
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                             className="px-2 py-0.5 text-xs rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">上一页</button>
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
@@ -202,8 +202,8 @@ const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; customerData: any; onB
                         ))}
                         <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
                             className="px-2 py-0.5 text-xs rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">下一页</button>
-                    </div>
-                )}
+                    </>)}
+                </div>
             </div>
         </div>
     );
@@ -1402,22 +1402,10 @@ const QuotePage: React.FC = () => {
                         {/* Quote table - takes available space */}
                         <HealthQuoteResults
                             plans={healthPlans}
-                            customerData={healthCustomerData}
                             highlightedPlans={highlightedPlans}
                             selectedPlan={selectedViewPlan}
                             onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); }}
                             onBack={() => { setShowHealthResults(false); setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
-                            onEnroll={(plan) => {
-                                setShowHealthResults(false);
-                                setStep(4);
-                                setChatStage(10);
-                                const planSummary = `${plan.plan_name} (${plan.carrier}) - ${plan.plan_type} ${plan.network_type}\n月保费: $${plan.monthly_premium?.toFixed(2)} | 免赔额: $${plan.deductible?.toLocaleString()} | 最高自付: $${plan.max_out_of_pocket?.toLocaleString()}`;
-                                setMessages([
-                                    { id: 'enroll-1', sender: 'user', text: `我想投保【${plan.plan_name}】` },
-                                    { id: 'enroll-2', sender: 'bot', text: `您选择了以下计划：\n\n${planSummary}\n\n为了完成投保，请提供以下信息：`, interactiveWidget: 'health_enroll' },
-                                ]);
-                                setEnrollingPlan(plan);
-                            }}
                         />
 
                         {/* Chat panel at bottom */}
