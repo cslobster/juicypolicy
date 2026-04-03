@@ -834,6 +834,7 @@ const QuotePage: React.FC = () => {
     const [quoteChatMessages, setQuoteChatMessages] = useState<Message[]>([]);
     const [highlightedPlans, setHighlightedPlans] = useState<string[]>([]);
     const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
+    const [showPlanCard, setShowPlanCard] = useState(false);
 
     // Load previous quote from localStorage if available and not expired
     useEffect(() => {
@@ -1245,6 +1246,7 @@ const QuotePage: React.FC = () => {
         if (!input.trim() || isBotTyping || !activeQuoteId) return;
         const text = input.trim();
         setInput('');
+        setShowPlanCard(false);
 
         const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
         setQuoteChatMessages(prev => [...prev, userMsg]);
@@ -1404,7 +1406,7 @@ const QuotePage: React.FC = () => {
                             plans={healthPlans}
                             highlightedPlans={highlightedPlans}
                             selectedPlan={selectedViewPlan}
-                            onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); }}
+                            onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); setShowPlanCard(!!plan); }}
                             onBack={() => { setShowHealthResults(false); setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
                         />
 
@@ -1432,7 +1434,7 @@ const QuotePage: React.FC = () => {
                                 )}
 
                                 {/* Selected plan detail card - at end of chat */}
-                                {selectedViewPlan && (<>
+                                {selectedViewPlan && showPlanCard && (<>
                                     <div className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-200 max-w-[480px]">
                                         <p className="font-bold mb-1">{selectedViewPlan.plan_name}</p>
                                         <p className="text-xs text-muted-foreground mb-2">{selectedViewPlan.carrier} · {selectedViewPlan.plan_type} · {selectedViewPlan.network_type}</p>
@@ -1460,6 +1462,7 @@ const QuotePage: React.FC = () => {
                                             setEnrollingPlan(p);
                                         }}>投保</Button>
                                         <Button variant="outline" size="sm" className="h-8 text-sm px-6 rounded-full" onClick={() => {
+                                            setShowPlanCard(false);
                                             const p = selectedViewPlan;
                                             const text = `简单介绍一下这个保险: ${p.plan_name}`;
                                             const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
@@ -1475,6 +1478,7 @@ const QuotePage: React.FC = () => {
                                             .catch(() => { setIsBotTyping(false); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: '抱歉，暂时无法获取详情。' }]); });
                                         }}>保险介绍</Button>
                                         <Button variant="outline" size="sm" className="h-8 text-sm px-6 rounded-full" onClick={() => {
+                                            setShowPlanCard(false);
                                             const p = selectedViewPlan;
                                             const text = `请详细介绍这个保险的所有细节，包括适用人群、优缺点、和其他计划的对比: ${p.plan_name}`;
                                             const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
