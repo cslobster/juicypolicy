@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon, Search, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -18,6 +20,200 @@ interface QuotePlan {
     features: string[];
 }
 
+interface HealthPlan {
+    plan_name: string;
+    carrier: string;
+    plan_type: string;
+    network_type: string;
+    monthly_premium: number | null;
+    deductible: number | null;
+    max_out_of_pocket: number | null;
+    primary_care_copay: string | null;
+    specialist_copay: string | null;
+    emergency_room: string | null;
+    generic_drugs: string | null;
+    features: string[];
+}
+
+const PLAN_TYPE_COLORS: Record<string, string> = {
+    Bronze: '#B87333',
+    Silver: '#8E9BAE',
+    Gold: '#D4A843',
+    Platinum: '#5A6B7F',
+};
+
+const getPlanTypeBadgeClass = (type: string) => {
+    switch (type) {
+        case 'Bronze': return 'bg-[#B87333] text-white';
+        case 'Silver': return 'bg-[#8E9BAE] text-white';
+        case 'Gold': return 'bg-[#D4A843] text-white';
+        case 'Platinum': return 'bg-[#5A6B7F] text-white';
+        default: return 'bg-gray-500 text-white';
+    }
+};
+
+const HealthQuoteResults: React.FC<{ plans: HealthPlan[]; customerData: any; onBack: () => void; onEnroll: (plan: HealthPlan) => void; highlightedPlans?: string[]; selectedPlan: HealthPlan | null; onSelectPlan: (plan: HealthPlan | null) => void }> = ({ plans, customerData, onBack, onEnroll, highlightedPlans = [], selectedPlan, onSelectPlan }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [planTypeFilter, setPlanTypeFilter] = useState('all');
+    const [networkFilter, setNetworkFilter] = useState('all');
+    const [carrierFilter, setCarrierFilter] = useState('all');
+    const [sortBy, setSortBy] = useState('premium_asc');
+    const [page, setPage] = useState(1);
+    const perPage = 5;
+
+    const uniquePlanTypes = [...new Set(plans.map(p => p.plan_type).filter(Boolean))];
+    const uniqueNetworks = [...new Set(plans.map(p => p.network_type).filter(Boolean))];
+    const uniqueCarriers = [...new Set(plans.map(p => p.carrier).filter(Boolean))];
+
+    const filteredPlans = useMemo(() => {
+        let filtered = plans.filter(plan => {
+            if (searchTerm) {
+                const s = searchTerm.toLowerCase();
+                if (!(plan.plan_name?.toLowerCase().includes(s) || plan.carrier?.toLowerCase().includes(s))) return false;
+            }
+            if (planTypeFilter !== 'all' && plan.plan_type !== planTypeFilter) return false;
+            if (networkFilter !== 'all' && plan.network_type !== networkFilter) return false;
+            if (carrierFilter !== 'all' && plan.carrier !== carrierFilter) return false;
+            return true;
+        });
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'name_asc': return (a.plan_name || '').localeCompare(b.plan_name || '');
+                case 'name_desc': return (b.plan_name || '').localeCompare(a.plan_name || '');
+                case 'premium_asc': return (a.monthly_premium || 0) - (b.monthly_premium || 0);
+                case 'premium_desc': return (b.monthly_premium || 0) - (a.monthly_premium || 0);
+                case 'deductible_asc': return (a.deductible || 0) - (b.deductible || 0);
+                case 'deductible_desc': return (b.deductible || 0) - (a.deductible || 0);
+                case 'copay_asc': {
+                    const av = parseFloat(a.primary_care_copay?.replace(/[^0-9.]/g, '') || '9999');
+                    const bv = parseFloat(b.primary_care_copay?.replace(/[^0-9.]/g, '') || '9999');
+                    return av - bv;
+                }
+                case 'copay_desc': {
+                    const av = parseFloat(a.primary_care_copay?.replace(/[^0-9.]/g, '') || '0');
+                    const bv = parseFloat(b.primary_care_copay?.replace(/[^0-9.]/g, '') || '0');
+                    return bv - av;
+                }
+                default: return 0;
+            }
+        });
+        return filtered;
+    }, [plans, searchTerm, planTypeFilter, networkFilter, carrierFilter, sortBy]);
+
+    const toggleSort = (field: string) => {
+        setSortBy(prev => prev === `${field}_asc` ? `${field}_desc` : `${field}_asc`);
+    };
+    const sortArrow = (field: string) => sortBy === `${field}_asc` ? ' ↑' : sortBy === `${field}_desc` ? ' ↓' : '';
+    const totalPages = Math.ceil(filteredPlans.length / perPage);
+    const pagedPlans = filteredPlans.slice((page - 1) * perPage, page * perPage);
+
+    // Reset page when filters change
+    useEffect(() => { setPage(1); }, [searchTerm, planTypeFilter, networkFilter, carrierFilter, sortBy]);
+
+    const hasFilters = searchTerm || planTypeFilter !== 'all' || networkFilter !== 'all' || carrierFilter !== 'all' || sortBy !== 'premium_asc';
+    const sel = "h-8 rounded border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary";
+    const fmt = (v: number | null) => typeof v === 'number' ? `$${v.toLocaleString()}` : '-';
+
+    return (
+        <div className="flex flex-col shrink-0 w-full">
+            {/* Filters */}
+            <div className="px-4 py-1.5 border-b bg-white flex items-center gap-1.5 max-w-[768px] mx-auto w-full">
+                <div className="relative shrink-0">
+                    <Search size={10} className="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="text" placeholder="搜索..." value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className={`${sel} w-[80px] pl-5`} />
+                </div>
+                <select value={planTypeFilter} onChange={e => setPlanTypeFilter(e.target.value)} className={sel}>
+                    <option value="all">等级</option>
+                    {uniquePlanTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select value={networkFilter} onChange={e => setNetworkFilter(e.target.value)} className={sel}>
+                    <option value="all">网络</option>
+                    {uniqueNetworks.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <select value={carrierFilter} onChange={e => setCarrierFilter(e.target.value)} className={sel}>
+                    <option value="all">保险公司</option>
+                    {uniqueCarriers.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <span className="text-xs text-muted-foreground ml-auto shrink-0">{filteredPlans.length}个 · 第{page}/{totalPages}页</span>
+                {hasFilters && (
+                    <button onClick={() => { setSearchTerm(''); setPlanTypeFilter('all'); setNetworkFilter('all'); setCarrierFilter('all'); setSortBy('premium_asc'); }}
+                        className="text-xs text-primary hover:underline shrink-0">清除</button>
+                )}
+                <Button variant="outline" size="sm" onClick={onBack} className="text-xs h-7 px-2 shrink-0">重新报价</Button>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-auto shrink-0">
+                <table className="w-full text-sm border-collapse max-w-[768px] mx-auto">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr className="border-b text-left text-xs text-muted-foreground tracking-wide">
+                            <th className="py-2 px-3 font-medium cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort('name')}>计划名称{sortArrow('name')}</th>
+                            <th className="py-2 px-2 font-medium">类型</th>
+                            <th className="py-2 px-2 font-medium text-right cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort('premium')}>月保费{sortArrow('premium')}</th>
+                            <th className="py-2 px-2 font-medium text-right cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort('deductible')}>免赔额{sortArrow('deductible')}</th>
+                            <th className="py-2 px-2 font-medium cursor-pointer hover:text-foreground select-none" onClick={() => toggleSort('copay')}>门诊费{sortArrow('copay')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {pagedPlans.map((plan, idx) => {
+                            const isSelected = selectedPlan === plan;
+                            const isHighlighted = highlightedPlans.some(hp => hp === plan.plan_name);
+                            return (
+                            <tr key={idx}
+                                className={`border-b border-gray-100 cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 font-semibold' : isHighlighted ? 'bg-amber-50' : 'hover:bg-blue-50/30'}`}
+                                onClick={() => onSelectPlan(isSelected ? null : plan)}>
+                                <td className="py-2 px-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-[3px] h-7 rounded-full shrink-0" style={{ background: PLAN_TYPE_COLORS[plan.plan_type] || '#94a3b8' }} />
+                                        <div className="min-w-0">
+                                            <p className="font-medium truncate max-w-[300px]">{plan.plan_name}</p>
+                                            <p className="text-xs text-muted-foreground">{plan.carrier}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="py-2 px-2">
+                                    <div className="flex gap-1">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold text-white ${getPlanTypeBadgeClass(plan.plan_type)}`}>{plan.plan_type?.slice(0, 1)}</span>
+                                        <span className="px-1.5 py-0.5 rounded text-[10px] border border-gray-300">{plan.network_type}</span>
+                                    </div>
+                                </td>
+                                <td className="py-2 px-2 text-right font-bold">
+                                    {typeof plan.monthly_premium === 'number' ? `$${plan.monthly_premium.toFixed(0)}` : '-'}
+                                </td>
+                                <td className="py-2 px-2 text-right">{fmt(plan.deductible)}</td>
+                                <td className="py-2 px-2 text-muted-foreground">{plan.primary_care_copay?.match(/\$[\d,.]+/)?.[0] || '-'}</td>
+                            </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+                {filteredPlans.length === 0 && (
+                    <div className="flex h-20 items-center justify-center text-muted-foreground text-xs max-w-[768px] mx-auto">没有匹配的计划</div>
+                )}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1 py-1.5 max-w-[768px] mx-auto">
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                            className="px-2 py-0.5 text-xs rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">上一页</button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                            <button key={p} onClick={() => setPage(p)}
+                                className={`w-6 h-6 text-xs rounded ${p === page ? 'bg-primary text-white' : 'border border-gray-200 hover:bg-gray-50'}`}>{p}</button>
+                        ))}
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                            className="px-2 py-0.5 text-xs rounded border border-gray-200 disabled:opacity-30 hover:bg-gray-50">下一页</button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+interface HouseholdMember {
+    age: string;
+    sex: 'M' | 'F' | '';
+}
+
 interface Message {
     id: string;
     sender: 'bot' | 'user';
@@ -25,7 +221,7 @@ interface Message {
     options?: string[];
     quotesList?: QuotePlan[];
     isTyping?: boolean;
-    interactiveWidget?: 'country_selector' | 'travel_details' | 'life_details' | 'enrollment_form' | 'payment_checkout';
+    interactiveWidget?: 'country_selector' | 'travel_details' | 'life_details' | 'health_details' | 'health_enroll' | 'enrollment_form' | 'payment_checkout';
     selectedPlanContext?: QuotePlan;
     imageUrl?: string;
 }
@@ -166,6 +362,195 @@ const LifeDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => void 
                         <option value="female">女</option>
                     </select>
                 </div>
+                <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
+                    生成报价
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
+const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) => void }> = ({ plan, onSubmit }) => {
+    const [form, setForm] = useState({
+        firstName: '', lastName: '', dob: '', gender: '',
+        ssn: '', email: '', phone: '',
+        address: '', city: '', state: 'CA', zip: '',
+    });
+    const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+    const isValid = form.firstName && form.lastName && form.dob && form.gender && form.email && form.phone && form.address && form.city && form.zip;
+
+    return (
+        <Card className="animate-fade-in mt-4">
+            <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">
+                    {plan.plan_name} ({plan.carrier}) — ${plan.monthly_premium?.toFixed(2)}/月
+                </div>
+
+                <h4 className="text-sm font-semibold mb-3">申请人信息</h4>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">名 (First Name)</label>
+                        <Input value={form.firstName} onChange={e => set('firstName', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">姓 (Last Name)</label>
+                        <Input value={form.lastName} onChange={e => set('lastName', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">出生日期</label>
+                        <Input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">性别</label>
+                        <select value={form.gender} onChange={e => set('gender', e.target.value)}
+                            className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <option value="">请选择</option>
+                            <option value="Male">男</option>
+                            <option value="Female">女</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4 className="text-sm font-semibold mb-3">联系方式</h4>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">邮箱</label>
+                        <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                    </div>
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">电话</label>
+                        <Input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} />
+                    </div>
+                </div>
+
+                <h4 className="text-sm font-semibold mb-3">居住地址</h4>
+                <div className="flex flex-col gap-3 mb-4">
+                    <div>
+                        <label className="block text-xs mb-0.5 text-muted-foreground">街道地址</label>
+                        <Input value={form.address} onChange={e => set('address', e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs mb-0.5 text-muted-foreground">城市</label>
+                            <Input value={form.city} onChange={e => set('city', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-xs mb-0.5 text-muted-foreground">州</label>
+                            <Input value={form.state} onChange={e => set('state', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-xs mb-0.5 text-muted-foreground">邮编</label>
+                            <Input value={form.zip} onChange={e => set('zip', e.target.value)} />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mb-4">
+                    <label className="block text-xs mb-0.5 text-muted-foreground">社会安全号码 (可选)</label>
+                    <Input type="text" placeholder="XXX-XX-XXXX" value={form.ssn} onChange={e => set('ssn', e.target.value)} />
+                </div>
+
+                <Button className="w-full" disabled={!isValid}
+                    onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.email}, ${form.phone}`)}>
+                    提交申请
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
+const HealthDetailsWidget: React.FC<{ zip: string; onSubmit: (text: string, data: any) => void }> = ({ zip, onSubmit }) => {
+    const [members, setMembers] = useState<HouseholdMember[]>([{ age: '', sex: '' }]);
+    const [income, setIncome] = useState('');
+
+    const addMember = () => setMembers([...members, { age: '', sex: '' }]);
+    const removeMember = (idx: number) => {
+        if (members.length <= 1) return;
+        setMembers(members.filter((_, i) => i !== idx));
+    };
+    const updateMember = (idx: number, field: keyof HouseholdMember, val: string) => {
+        const updated = [...members];
+        updated[idx] = { ...updated[idx], [field]: val };
+        setMembers(updated);
+    };
+
+    const isValid = members.every(m => m.age && m.sex) && income;
+
+    const handleSubmit = () => {
+        if (!isValid) return;
+        const primary = members[0];
+        const otherAges = members.slice(1).map(m => parseInt(m.age));
+        const summary = members.map((m, i) => `${i === 0 ? '主申请人' : `成员${i + 1}`}: ${m.age}岁, ${m.sex === 'M' ? '男' : '女'}`).join('; ');
+        onSubmit(`${summary}. 家庭年收入: $${income}`, {
+            name: 'Primary',
+            sex: primary.sex === 'M' ? 'Male' : 'Female',
+            age: parseInt(primary.age),
+            zip,
+            income,
+            household_size: members.length,
+            ages_list: otherAges.length > 0 ? otherAges : undefined,
+            members,
+        });
+    };
+
+    return (
+        <Card className="animate-fade-in mt-6">
+            <CardContent className="pt-6">
+                <h4 className="mb-4 text-primary font-serif text-lg">家庭成员信息</h4>
+                <p className="text-sm text-muted-foreground mb-4">邮编: <strong>{zip}</strong></p>
+
+                {members.map((member, idx) => (
+                    <div key={idx} className="flex gap-4 mb-4 items-end">
+                        <div className="flex-1">
+                            <label className="block text-sm mb-1 text-foreground font-medium">
+                                {idx === 0 ? '主申请人年龄' : `成员 ${idx + 1} 年龄`}
+                            </label>
+                            <Input
+                                type="number"
+                                placeholder="例如: 35"
+                                value={member.age}
+                                onChange={e => updateMember(idx, 'age', e.target.value)}
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-sm mb-1 text-foreground font-medium">性别</label>
+                            <select
+                                value={member.sex}
+                                onChange={e => updateMember(idx, 'sex', e.target.value)}
+                                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option value="" disabled>请选择</option>
+                                <option value="M">男 (M)</option>
+                                <option value="F">女 (F)</option>
+                            </select>
+                        </div>
+                        {members.length > 1 && (
+                            <button onClick={() => removeMember(idx)} className="bg-transparent border-none text-destructive cursor-pointer p-2 mb-0.5">
+                                <Trash size={18} />
+                            </button>
+                        )}
+                    </div>
+                ))}
+
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={addMember}
+                    className="mb-6 flex items-center gap-2"
+                >
+                    <Plus size={16} /> 添加家庭成员
+                </Button>
+
+                <div className="mb-6">
+                    <label className="block text-sm mb-1 text-foreground font-medium">家庭年收入 (USD)</label>
+                    <Input
+                        type="text"
+                        placeholder="例如: 60000"
+                        value={income}
+                        onChange={e => setIncome(e.target.value)}
+                    />
+                </div>
+
                 <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
                     生成报价
                 </Button>
@@ -396,6 +781,7 @@ const QuotePage: React.FC = () => {
     const typeParam = new URLSearchParams(location.search).get('type') || 'unknown';
 
     const typeMap: Record<string, string> = {
+        'health': '健康保险',
         'travel': '旅行保险',
         'auto': '汽车保险',
         'property': '财产与房屋',
@@ -415,8 +801,13 @@ const QuotePage: React.FC = () => {
     ];
 
     const isLifeInsurance = selectedType === '定期寿险' || selectedType === '终身寿险';
+    const isHealthInsurance = selectedType === '健康保险';
+    const [healthZip, setHealthZip] = useState('');
 
     const getInitialMessage = (): Message => {
+        if (isHealthInsurance) {
+            return { id: '1', sender: 'bot', text: '欢迎使用鲜橙健康保险报价！首先，请输入您的邮编 (ZIP Code)：' };
+        }
         if (selectedType === '旅行保险') {
             return { id: '1', sender: 'bot', text: '为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？', interactiveWidget: 'country_selector' };
         }
@@ -435,6 +826,41 @@ const QuotePage: React.FC = () => {
     const bottomRef = useRef<HTMLDivElement>(null);
     const [travelData, setTravelData] = useState<any>(null);
     const [selectedPlan, setSelectedPlan] = useState<QuotePlan | null>(null);
+    const [healthPlans, setHealthPlans] = useState<HealthPlan[]>([]);
+    const [healthCustomerData, setHealthCustomerData] = useState<any>(null);
+    const [showHealthResults, setShowHealthResults] = useState(false);
+    const [enrollingPlan, setEnrollingPlan] = useState<HealthPlan | null>(null);
+    const [activeQuoteId, setActiveQuoteId] = useState<number | null>(null);
+    const [quoteChatMessages, setQuoteChatMessages] = useState<Message[]>([]);
+    const [highlightedPlans, setHighlightedPlans] = useState<string[]>([]);
+    const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
+
+    // Load previous quote from localStorage if available and not expired
+    useEffect(() => {
+        if (!isHealthInsurance || healthPlans.length > 0) return;
+        try {
+            const saved = localStorage.getItem('jp_health_quote_id');
+            if (!saved) return;
+            const { id, expires } = JSON.parse(saved);
+            if (Date.now() > expires) {
+                localStorage.removeItem('jp_health_quote_id');
+                return;
+            }
+            fetch(`${API_BASE}/api/quote/${id}`)
+                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                .then(data => {
+                    if (data.has_quote && data.quote_data?.plans) {
+                        setHealthPlans(data.quote_data.plans);
+                        setHealthCustomerData(data.customer_data);
+                        setActiveQuoteId(data.quote_id);
+                        setShowHealthResults(true);
+                    }
+                })
+                .catch(() => { localStorage.removeItem('jp_health_quote_id'); });
+        } catch {
+            localStorage.removeItem('jp_health_quote_id');
+        }
+    }, []);
 
     // Widget States
     const [citizenship, setCitizenship] = useState('');
@@ -454,8 +880,50 @@ const QuotePage: React.FC = () => {
             setIsBotTyping(false);
             let newBotMsg: Message | null = null;
 
+            // ====== HEALTH INSURANCE FLOW ======
+            if (isHealthInsurance) {
+                if (chatStage === 1) { // After zip code
+                    const zip = userText.replace(/\D/g, '').slice(0, 5);
+                    setHealthZip(zip);
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `邮编 ${zip} 已确认。请填写您的家庭成员信息和收入，以便我们计算最精准的保费和补贴：`,
+                        interactiveWidget: 'health_details'
+                    };
+                    setChatStage(2);
+                } else if (chatStage === 2) { // After health details form
+                    if (widgetData) setTravelData(widgetData);
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `信息已收到！鲜橙保险正在为您从 Covered California 生成最优健康保险方案...`
+                    };
+                    setChatStage(4);
+                    setTimeout(() => triggerHealthQuote(widgetData), 1500);
+                } else if (chatStage === 5) {
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `信息记录成功，核保已初步通过！最后一步，请使用借记卡/信用卡安全支付您的保费：`,
+                        interactiveWidget: 'payment_checkout',
+                        selectedPlanContext: selectedPlan || undefined
+                    };
+                    setChatStage(6);
+                } else if (chatStage === 6) {
+                    setStep(5);
+                    newBotMsg = {
+                        id: Date.now().toString(),
+                        sender: 'bot',
+                        text: `支付成功！恭喜，您已成功完成投保。电子保单将在几分钟内发送至您的邮箱。感谢您使用鲜橙保险！`
+                    };
+                    setChatStage(7);
+                } else {
+                    newBotMsg = { id: Date.now().toString(), sender: 'bot', text: '如果您对当前流程有任何疑问，可以随时告诉我。' };
+                }
+            }
             // ====== TRAVEL INSURANCE FLOW ======
-            if (selectedType === '旅行保险') {
+            else if (selectedType === '旅行保险') {
                 if (chatStage === 1) { // After country selector
                     newBotMsg = {
                         id: Date.now().toString(),
@@ -620,6 +1088,119 @@ const QuotePage: React.FC = () => {
         }, 2000);
     };
 
+    const triggerHealthQuote = async (data: any) => {
+        setIsBotTyping(true);
+        setStep(3);
+
+        try {
+            // Step 1: Create quote in DB
+            const createRes = await fetch(`${API_BASE}/api/quote`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: data.name || 'Primary',
+                    sex: data.sex || 'Male',
+                    age: data.age,
+                    zip: data.zip,
+                    income: data.income,
+                    household_size: data.household_size,
+                    ages_list: data.ages_list || [],
+                }),
+            });
+
+            if (!createRes.ok) throw new Error('Failed to create quote');
+            const { quote_id } = await createRes.json();
+
+            // Step 2: Show waiting message
+            setMessages(prev => [...prev, {
+                id: `polling_${quote_id}`,
+                sender: 'bot' as const,
+                text: `报价请求 #${quote_id} 已创建，正在从 Covered California 实时抓取报价数据，请稍候... (Worker 处理中)`,
+            }]);
+
+            // Step 3: Poll for result
+            const pollInterval = 5000;
+            const maxPolls = 120; // 10 minutes max
+            let polls = 0;
+
+            const poll = async () => {
+                polls++;
+                const statusRes = await fetch(`${API_BASE}/api/quote/${quote_id}`);
+                if (!statusRes.ok) throw new Error('Failed to check quote status');
+                const quoteData = await statusRes.json();
+
+                if (quoteData.quote_status === 'quoted' && quoteData.has_quote) {
+                    const rawPlans: HealthPlan[] = quoteData.quote_data?.plans || [];
+                    setHealthPlans(rawPlans);
+                    setHealthCustomerData(quoteData.customer_data);
+                    setActiveQuoteId(quoteData.quote_id);
+                    localStorage.setItem('jp_health_quote_id', JSON.stringify({ id: quoteData.quote_id, expires: Date.now() + 24 * 60 * 60 * 1000 }));
+
+                    setIsBotTyping(false);
+                    setMessages(prev => {
+                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
+                        return [...filtered, {
+                            id: Date.now().toString(),
+                            sender: 'bot' as const,
+                            text: `抓取完成！从 Covered California 找到 ${rawPlans.length} 个健康保险方案。`,
+                        }];
+                    });
+                    setShowHealthResults(true);
+                    return;
+                }
+
+                if (quoteData.quote_status === 'error') {
+                    setIsBotTyping(false);
+                    setMessages(prev => {
+                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
+                        return [...filtered, {
+                            id: Date.now().toString(),
+                            sender: 'bot' as const,
+                            text: `报价抓取失败: ${quoteData.quote_data?.error || '未知错误'}。请稍后重试。`,
+                        }];
+                    });
+                    return;
+                }
+
+                if (polls >= maxPolls) {
+                    setIsBotTyping(false);
+                    setMessages(prev => {
+                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
+                        return [...filtered, {
+                            id: Date.now().toString(),
+                            sender: 'bot' as const,
+                            text: '报价抓取超时，请稍后刷新页面查看结果。',
+                        }];
+                    });
+                    return;
+                }
+
+                // Update polling message with live status from backend
+                const statusMsg = quoteData.status_message || 'Processing...';
+                const statusIcon = quoteData.quote_status === 'scraping' ? '🔍' :
+                                   quoteData.quote_status === 'converting' ? '🤖' : '⏳';
+                setMessages(prev =>
+                    prev.map(m =>
+                        m.id === `polling_${quote_id}`
+                            ? { ...m, text: `${statusIcon} 报价 #${quote_id} | ${statusMsg}\n⏱ 已等待 ${polls * 5} 秒` }
+                            : m
+                    )
+                );
+
+                setTimeout(poll, pollInterval);
+            };
+
+            setTimeout(poll, pollInterval);
+        } catch (err) {
+            setIsBotTyping(false);
+            setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                sender: 'bot' as const,
+                text: `抱歉，报价创建失败，请稍后重试。错误: ${err}`,
+            }]);
+        }
+    };
+
     const handlePurchase = (plan: QuotePlan) => {
         setIsBotTyping(true);
         setStep(4);
@@ -660,7 +1241,49 @@ const QuotePage: React.FC = () => {
         }, 1500);
     };
 
-    const handleSend = (textOverride?: string, widgetData?: any, imageBase64?: string) => {
+    const handleQuoteChat = async () => {
+        if (!input.trim() || isBotTyping || !activeQuoteId) return;
+        const text = input.trim();
+        setInput('');
+
+        const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
+        setQuoteChatMessages(prev => [...prev, userMsg]);
+        setIsBotTyping(true);
+
+        try {
+            const history = quoteChatMessages.map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                content: m.text,
+            }));
+
+            const res = await fetch(`${API_BASE}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ quote_id: activeQuoteId, message: text, history, selected_plan: selectedViewPlan }),
+            });
+
+            if (!res.ok) throw new Error('Chat failed');
+            const data = await res.json();
+
+            setIsBotTyping(false);
+            setHighlightedPlans(data.mentioned_plans || []);
+            setQuoteChatMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'bot',
+                text: data.reply,
+            }]);
+        } catch {
+            setIsBotTyping(false);
+            setHighlightedPlans([]);
+            setQuoteChatMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'bot',
+                text: '抱歉，暂时无法回复，请稍后再试。',
+            }]);
+        }
+    };
+
+    const handleSend = async (textOverride?: string, widgetData?: any, imageBase64?: string) => {
         const textToSend = textOverride || input;
         if ((!textToSend.trim() && !imageBase64) || isBotTyping) return;
 
@@ -678,8 +1301,49 @@ const QuotePage: React.FC = () => {
             imageUrl: imageBase64
         };
 
-        setMessages([...updatedMessages, userMsg]);
+        const newMessages = [...updatedMessages, userMsg];
+        setMessages(newMessages);
         setInput('');
+
+        // If we have an active quote and no widget interaction, use AI chat
+        if (activeQuoteId && !widgetData && !imageBase64 && !showHealthResults) {
+            setIsBotTyping(true);
+            try {
+                const history = newMessages
+                    .filter(m => m.sender === 'user' || m.sender === 'bot')
+                    .slice(-10)
+                    .map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text }));
+
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        quote_id: activeQuoteId,
+                        message: textToSend.trim(),
+                        history: history.slice(0, -1),
+                    }),
+                });
+
+                if (!res.ok) throw new Error('Chat failed');
+                const data = await res.json();
+
+                setIsBotTyping(false);
+                setMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    sender: 'bot' as const,
+                    text: data.reply,
+                }]);
+            } catch {
+                setIsBotTyping(false);
+                setMessages(prev => [...prev, {
+                    id: Date.now().toString(),
+                    sender: 'bot' as const,
+                    text: '抱歉，暂时无法回复，请稍后再试。',
+                }]);
+            }
+            return;
+        }
+
         simulateBotResponse(textToSend.trim() || '上传了图片', widgetData);
     };
 
@@ -705,34 +1369,147 @@ const QuotePage: React.FC = () => {
     return (
         <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-4rem)] w-full">
 
-            <div className="px-8 pt-8">
-                <div className="flex justify-between items-start relative mb-8">
-                    {/* Connector line */}
-                    <div className="absolute top-4 left-0 right-0 h-0.5 bg-slate-200 z-0" />
+            <div className="px-6 py-2 flex items-center gap-3">
+                <h2 className="text-lg font-semibold font-serif shrink-0">{selectedType}</h2>
+                <div className="flex items-center gap-1">
                     {steps.map((s) => (
-                        <div key={s.num} className="flex flex-col items-center z-[2]">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all ${
+                        <div key={s.num} className="flex items-center gap-1">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold border transition-all ${
                                 step > s.num
                                     ? 'bg-primary border-primary text-primary-foreground'
                                     : step === s.num
-                                        ? 'bg-white border-primary text-primary shadow-[0_0_0_4px_rgba(59,130,246,0.1)]'
+                                        ? 'bg-white border-primary text-primary'
                                         : 'bg-white border-slate-200 text-muted-foreground'
                             }`}>
                                 {s.num}
                             </div>
-                            <span className={`text-xs mt-2 ${step === s.num ? 'font-semibold text-foreground' : 'font-normal text-muted-foreground'}`}>
+                            <span className={`text-[10px] mr-1 ${step === s.num ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                                 {s.label}
                             </span>
                         </div>
                     ))}
                 </div>
-            </div>
-
-            <div className="text-center mb-4">
-                <h2 className="text-2xl font-semibold mb-2 font-serif">{selectedType}</h2>
+                {showHealthResults && healthCustomerData && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                        {healthCustomerData.zip} | ${Number(healthCustomerData.income || 0).toLocaleString()} | {healthCustomerData.sex === 'Male' ? '男' : '女'} | {[healthCustomerData.age, ...(healthCustomerData.ages_list || [])].join(', ')}岁
+                    </span>
+                )}
             </div>
 
             <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                {showHealthResults && healthPlans.length > 0 ? (
+                    <div className="flex flex-col flex-1 overflow-hidden">
+                        {/* Quote table - takes available space */}
+                        <HealthQuoteResults
+                            plans={healthPlans}
+                            customerData={healthCustomerData}
+                            highlightedPlans={highlightedPlans}
+                            selectedPlan={selectedViewPlan}
+                            onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); }}
+                            onBack={() => { setShowHealthResults(false); setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
+                            onEnroll={(plan) => {
+                                setShowHealthResults(false);
+                                setStep(4);
+                                setChatStage(10);
+                                const planSummary = `${plan.plan_name} (${plan.carrier}) - ${plan.plan_type} ${plan.network_type}\n月保费: $${plan.monthly_premium?.toFixed(2)} | 免赔额: $${plan.deductible?.toLocaleString()} | 最高自付: $${plan.max_out_of_pocket?.toLocaleString()}`;
+                                setMessages([
+                                    { id: 'enroll-1', sender: 'user', text: `我想投保【${plan.plan_name}】` },
+                                    { id: 'enroll-2', sender: 'bot', text: `您选择了以下计划：\n\n${planSummary}\n\n为了完成投保，请提供以下信息：`, interactiveWidget: 'health_enroll' },
+                                ]);
+                                setEnrollingPlan(plan);
+                            }}
+                        />
+
+                        {/* Chat panel at bottom */}
+                        <div className="flex-1 overflow-y-auto px-4 py-2">
+                            <div className="max-w-[768px] mx-auto flex flex-col gap-2 w-full">
+                                {/* Chat messages */}
+                                {quoteChatMessages.map((msg) => (
+                                    <div key={msg.id} className={`flex ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
+                                        <div className={`text-sm whitespace-pre-wrap ${
+                                            msg.sender === 'bot' ? 'w-full text-gray-800' : 'max-w-[85%] bg-primary text-white px-3 py-1.5 rounded-2xl'
+                                        }`}>
+                                            {msg.text}
+                                        </div>
+                                    </div>
+                                ))}
+                                {isBotTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-2xl flex gap-1 items-center">
+                                            <div className="typing-dot bg-muted-foreground"></div>
+                                            <div className="typing-dot bg-muted-foreground" style={{ animationDelay: '0.2s' }}></div>
+                                            <div className="typing-dot bg-muted-foreground" style={{ animationDelay: '0.4s' }}></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Selected plan detail card - at end of chat */}
+                                {selectedViewPlan && (<>
+                                    <div className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-200 max-w-[480px]">
+                                        <p className="font-bold mb-1">{selectedViewPlan.plan_name}</p>
+                                        <p className="text-xs text-muted-foreground mb-2">{selectedViewPlan.carrier} · {selectedViewPlan.plan_type} · {selectedViewPlan.network_type}</p>
+                                        <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-xs">
+                                            <div>月保费 <span className="font-bold text-sm">${selectedViewPlan.monthly_premium?.toFixed(2)}</span></div>
+                                            <div>免赔额 <span className="font-medium">${selectedViewPlan.deductible?.toLocaleString()}</span></div>
+                                            <div>最高自付 <span className="font-medium">${selectedViewPlan.max_out_of_pocket?.toLocaleString()}</span></div>
+                                            <div>门诊费 <span className="font-medium">{selectedViewPlan.primary_care_copay || '-'}</span></div>
+                                            <div>专科 <span className="font-medium">{selectedViewPlan.specialist_copay || '-'}</span></div>
+                                            <div>急诊 <span className="font-medium">{selectedViewPlan.emergency_room || '-'}</span></div>
+                                            <div>处方药 <span className="font-medium">{selectedViewPlan.generic_drugs || '-'}</span></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" className="h-8 text-sm px-8 rounded-full" onClick={() => {
+                                            setShowHealthResults(false);
+                                            setStep(4);
+                                            setChatStage(10);
+                                            const p = selectedViewPlan;
+                                            const planSummary = `${p.plan_name} (${p.carrier}) - ${p.plan_type} ${p.network_type}\n月保费: $${p.monthly_premium?.toFixed(2)} | 免赔额: $${p.deductible?.toLocaleString()} | 最高自付: $${p.max_out_of_pocket?.toLocaleString()}`;
+                                            setMessages([
+                                                { id: 'enroll-1', sender: 'user', text: `我想投保【${p.plan_name}】` },
+                                                { id: 'enroll-2', sender: 'bot', text: `您选择了以下计划：\n\n${planSummary}\n\n为了完成投保，请提供以下信息：`, interactiveWidget: 'health_enroll' },
+                                            ]);
+                                            setEnrollingPlan(p);
+                                        }}>投保</Button>
+                                        <Button variant="outline" size="sm" className="h-8 text-sm px-6 rounded-full" onClick={() => {
+                                            const p = selectedViewPlan;
+                                            const text = `简单介绍一下这个保险: ${p.plan_name}`;
+                                            const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
+                                            setQuoteChatMessages(prev => [...prev, userMsg]);
+                                            setIsBotTyping(true);
+                                            fetch(`${API_BASE}/api/chat`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ quote_id: activeQuoteId, message: text, history: quoteChatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), selected_plan: p }),
+                                            })
+                                            .then(r => r.json())
+                                            .then(data => { setIsBotTyping(false); setHighlightedPlans(data.mentioned_plans || []); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: data.reply }]); })
+                                            .catch(() => { setIsBotTyping(false); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: '抱歉，暂时无法获取详情。' }]); });
+                                        }}>保险介绍</Button>
+                                        <Button variant="outline" size="sm" className="h-8 text-sm px-6 rounded-full" onClick={() => {
+                                            const p = selectedViewPlan;
+                                            const text = `请详细介绍这个保险的所有细节，包括适用人群、优缺点、和其他计划的对比: ${p.plan_name}`;
+                                            const userMsg: Message = { id: Date.now().toString(), sender: 'user', text };
+                                            setQuoteChatMessages(prev => [...prev, userMsg]);
+                                            setIsBotTyping(true);
+                                            fetch(`${API_BASE}/api/chat`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ quote_id: activeQuoteId, message: text, history: quoteChatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), selected_plan: p }),
+                                            })
+                                            .then(r => r.json())
+                                            .then(data => { setIsBotTyping(false); setHighlightedPlans(data.mentioned_plans || []); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: data.reply }]); })
+                                            .catch(() => { setIsBotTyping(false); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: '抱歉，暂时无法获取详情。' }]); });
+                                        }}>详细信息</Button>
+                                    </div>
+                                </>)}
+
+                                <div ref={bottomRef} />
+                            </div>
+                        </div>
+
+                    </div>
+                ) : (
                 <div className="flex-1 px-4 py-6 overflow-y-auto flex flex-col gap-5">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex w-full max-w-[768px] mx-auto flex-col ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
@@ -797,6 +1574,31 @@ const QuotePage: React.FC = () => {
                                 {/* === LIFE DETAILS WIDGET === */}
                                 {msg.interactiveWidget === 'life_details' && (
                                     <LifeDetailsWidget onSubmit={(text, data) => handleSend(text, data)} />
+                                )}
+
+                                {/* === HEALTH DETAILS WIDGET === */}
+                                {msg.interactiveWidget === 'health_details' && (
+                                    <HealthDetailsWidget zip={healthZip} onSubmit={(text, data) => handleSend(text, data)} />
+                                )}
+
+                                {/* === HEALTH ENROLL WIDGET === */}
+                                {msg.interactiveWidget === 'health_enroll' && enrollingPlan && (
+                                    <HealthEnrollWidget plan={enrollingPlan} onSubmit={(text) => {
+                                        setMessages(prev => [
+                                            ...prev.map(m => ({ ...m, interactiveWidget: undefined as any })),
+                                            { id: Date.now().toString(), sender: 'user' as const, text },
+                                        ]);
+                                        setIsBotTyping(true);
+                                        setTimeout(() => {
+                                            setIsBotTyping(false);
+                                            setStep(5);
+                                            setMessages(prev => [...prev, {
+                                                id: (Date.now() + 1).toString(),
+                                                sender: 'bot' as const,
+                                                text: `您的投保申请已提交！\n\n计划: ${enrollingPlan.plan_name}\n保险公司: ${enrollingPlan.carrier}\n月保费: $${enrollingPlan.monthly_premium?.toFixed(2)}\n\n我们的顾问将在1个工作日内与您联系确认投保信息。感谢您使用鲜橙保险！`,
+                                            }]);
+                                        }, 1500);
+                                    }} />
                                 )}
 
                                 {/* === ENROLLMENT FORM WIDGET === */}
@@ -895,6 +1697,7 @@ const QuotePage: React.FC = () => {
                     )}
                     <div ref={bottomRef} />
                 </div>
+                )}
 
                 <div className="px-4 py-3 bg-white relative max-w-[768px] mx-auto w-full">
                     <input
@@ -926,16 +1729,16 @@ const QuotePage: React.FC = () => {
                         </button>
                         <input
                             type="text"
-                            placeholder="输入任何问题..."
+                            placeholder={showHealthResults ? "询问保险方案相关问题..." : "输入任何问题..."}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                            onKeyPress={(e) => e.key === 'Enter' && (showHealthResults ? handleQuoteChat() : handleSend())}
                             onFocus={() => setShowPlusMenu(false)}
                             disabled={isBotTyping}
                             className="flex-1 bg-transparent border-none outline-none text-sm py-2 text-[#2d2d2d] placeholder:text-[#b4b4b4]"
                         />
                         <button
-                            onClick={() => handleSend()}
+                            onClick={() => showHealthResults ? handleQuoteChat() : handleSend()}
                             disabled={isBotTyping || !input.trim()}
                             className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                                 input.trim() && !isBotTyping
@@ -948,6 +1751,7 @@ const QuotePage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
         </div>
     );
 };
