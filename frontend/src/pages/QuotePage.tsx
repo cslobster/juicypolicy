@@ -383,7 +383,6 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
         taxStatus: '',
         annualIncome: '', incomeType: 'employment',
         qualifyingEvent: '',
-        idType: '',
     });
     const [uploadedFiles, setUploadedFiles] = useState<{ name: string; preview: string }[]>([]);
     const idInputRef = useRef<HTMLInputElement>(null);
@@ -599,19 +598,32 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                 <div>
                     <h4 className="text-sm font-semibold mb-2">身份验证</h4>
                     <p className="text-xs text-muted-foreground mb-3">
-                        请上传以下任一证件照片来验证身份：驾照、护照、州政府ID，或其他有效身份证件。
+                        请上传 A 类证件中的 <strong>1份</strong>，或 B 类证件中的 <strong>2份</strong> 来验证身份。
                     </p>
-                    <div className="mb-3">
-                        <label className={labelClass}>证件类型</label>
-                        <select value={form.idType} onChange={e => set('idType', e.target.value)} className={`${selectClass} max-w-xs`}>
-                            <option value="">请选择</option>
-                            <option value="driverLicense">驾驶执照</option>
-                            <option value="passport">美国护照</option>
-                            <option value="foreignPassport">外国护照</option>
-                            <option value="stateId">州政府ID</option>
-                            <option value="consularId">领事馆证件</option>
-                        </select>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        <div className="border rounded-lg p-3">
+                            <h5 className="text-xs font-semibold mb-2 text-primary">A 类 — 上传1份</h5>
+                            <ul className="text-xs text-muted-foreground space-y-1">
+                                <li>· 驾驶执照</li>
+                                <li>· 政府颁发的身份证件</li>
+                                <li>· 美国护照</li>
+                                <li>· 外国护照</li>
+                                <li>· 领事馆证件 (带照片)</li>
+                            </ul>
+                        </div>
+                        <div className="border rounded-lg p-3 border-t-2 border-t-cyan-400">
+                            <h5 className="text-xs font-semibold mb-2 text-cyan-600">B 类 — 上传2份</h5>
+                            <ul className="text-xs text-muted-foreground space-y-1">
+                                <li>· 社会安全卡</li>
+                                <li>· 公共福利机构通知</li>
+                                <li>· 美国出生证明</li>
+                                <li>· 雇主ID卡</li>
+                                <li>· 结婚证</li>
+                            </ul>
+                        </div>
                     </div>
+
                     <input
                         ref={idInputRef}
                         type="file"
@@ -622,10 +634,10 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                     />
                     <div
                         onClick={() => idInputRef.current?.click()}
-                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-blue-50/30 transition"
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-primary hover:bg-blue-50/30 transition"
                     >
                         <div className="text-2xl mb-1">📤</div>
-                        <p className="text-sm text-muted-foreground">点击上传证件照片</p>
+                        <p className="text-sm text-muted-foreground">点击或拖拽上传证件照片</p>
                         <p className="text-xs text-muted-foreground/60 mt-1">支持 JPG, PNG, PDF, TIFF (最大 10MB)</p>
                     </div>
                     {uploadedFiles.length > 0 && (
