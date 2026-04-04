@@ -372,90 +372,218 @@ const LifeDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => void 
 
 const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) => void; onBack: () => void }> = ({ plan, onSubmit, onBack }) => {
     const [form, setForm] = useState({
-        firstName: '', lastName: '', dob: '', gender: '',
-        ssn: '', email: '', phone: '',
-        address: '', city: '', state: 'CA', zip: '',
+        firstName: '', middleName: '', lastName: '',
+        dob: '', gender: '', maritalStatus: '',
+        ssn: '',
+        phone: '', email: '',
+        preferredLang: '中文',
+        address: '', apt: '', city: '', state: 'CA', zip: '',
+        mailingSame: true,
+        mailAddress: '', mailApt: '', mailCity: '', mailState: 'CA', mailZip: '',
+        taxStatus: '',
+        annualIncome: '', incomeType: 'employment',
+        qualifyingEvent: '',
     });
     const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
-    const isValid = form.firstName && form.lastName && form.dob && form.gender && form.email && form.phone && form.address && form.city && form.zip;
+    const isValid = form.firstName && form.lastName && form.dob && form.gender && form.phone && form.address && form.city && form.zip && form.taxStatus && form.annualIncome;
+
+    const labelClass = "block text-xs mb-0.5 text-muted-foreground";
+    const optLabel = (text: string) => <label className={labelClass}>{text} <span className="text-muted-foreground/50">(可选)</span></label>;
+    const selectClass = "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
     return (
         <Card className="animate-fade-in mt-4">
-            <CardContent className="pt-4">
-                <div className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">
+            <CardContent className="pt-4 space-y-5">
+                <div className="text-xs text-muted-foreground p-2 bg-blue-50 rounded">
                     {plan.plan_name} ({plan.carrier}) — ${plan.monthly_premium?.toFixed(2)}/月
                 </div>
 
-                <h4 className="text-sm font-semibold mb-3">申请人信息</h4>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">名 (First Name)</label>
-                        <Input value={form.firstName} onChange={e => set('firstName', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">姓 (Last Name)</label>
-                        <Input value={form.lastName} onChange={e => set('lastName', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">出生日期</label>
-                        <Input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">性别</label>
-                        <select value={form.gender} onChange={e => set('gender', e.target.value)}
-                            className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                            <option value="">请选择</option>
-                            <option value="Male">男</option>
-                            <option value="Female">女</option>
-                        </select>
-                    </div>
-                </div>
-
-                <h4 className="text-sm font-semibold mb-3">联系方式</h4>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">邮箱</label>
-                        <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
-                    </div>
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">电话</label>
-                        <Input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} />
-                    </div>
-                </div>
-
-                <h4 className="text-sm font-semibold mb-3">居住地址</h4>
-                <div className="flex flex-col gap-3 mb-4">
-                    <div>
-                        <label className="block text-xs mb-0.5 text-muted-foreground">街道地址</label>
-                        <Input value={form.address} onChange={e => set('address', e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
+                {/* 1. Personal Info */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">个人信息</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                         <div>
-                            <label className="block text-xs mb-0.5 text-muted-foreground">城市</label>
-                            <Input value={form.city} onChange={e => set('city', e.target.value)} />
+                            <label className={labelClass}>名 (First Name) *</label>
+                            <Input value={form.firstName} onChange={e => set('firstName', e.target.value)} />
                         </div>
                         <div>
-                            <label className="block text-xs mb-0.5 text-muted-foreground">州</label>
-                            <Input value={form.state} onChange={e => set('state', e.target.value)} />
+                            {optLabel('中间名 (Middle)')}
+                            <Input value={form.middleName} onChange={e => set('middleName', e.target.value)} />
                         </div>
                         <div>
-                            <label className="block text-xs mb-0.5 text-muted-foreground">邮编</label>
-                            <Input value={form.zip} onChange={e => set('zip', e.target.value)} />
+                            <label className={labelClass}>姓 (Last Name) *</label>
+                            <Input value={form.lastName} onChange={e => set('lastName', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className={labelClass}>出生日期 *</label>
+                            <Input type="date" value={form.dob} onChange={e => set('dob', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className={labelClass}>性别 *</label>
+                            <select value={form.gender} onChange={e => set('gender', e.target.value)} className={selectClass}>
+                                <option value="">请选择</option>
+                                <option value="Female">女 (Female)</option>
+                                <option value="Male">男 (Male)</option>
+                                <option value="TransFtoM">跨性别: 女转男</option>
+                                <option value="TransMtoF">跨性别: 男转女</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelClass}>婚姻状况 *</label>
+                            <select value={form.maritalStatus} onChange={e => set('maritalStatus', e.target.value)} className={selectClass}>
+                                <option value="">请选择</option>
+                                <option value="Single">单身</option>
+                                <option value="Married">已婚</option>
+                                <option value="Divorced">离异</option>
+                                <option value="Widowed">丧偶</option>
+                                <option value="DomesticPartner">注册同居伴侣</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <div className="mb-4">
-                    <label className="block text-xs mb-0.5 text-muted-foreground">社会安全号码 (可选)</label>
-                    <Input type="text" placeholder="XXX-XX-XXXX" value={form.ssn} onChange={e => set('ssn', e.target.value)} />
+                {/* 2. Contact */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">联系方式</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label className={labelClass}>手机号码 *</label>
+                            <Input type="tel" placeholder="(xxx) xxx-xxxx" value={form.phone} onChange={e => set('phone', e.target.value)} />
+                        </div>
+                        <div>
+                            {optLabel('邮箱')}
+                            <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+                        </div>
+                        <div>
+                            {optLabel('首选语言')}
+                            <select value={form.preferredLang} onChange={e => set('preferredLang', e.target.value)} className={selectClass}>
+                                <option value="中文">中文</option>
+                                <option value="English">English</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex gap-3">
+                {/* 3. Address */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">居住地址</h4>
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <div className="sm:col-span-3">
+                                <label className={labelClass}>街道地址 *</label>
+                                <Input value={form.address} onChange={e => set('address', e.target.value)} />
+                            </div>
+                            <div>
+                                {optLabel('公寓/单元号')}
+                                <Input value={form.apt} onChange={e => set('apt', e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label className={labelClass}>城市 *</label>
+                                <Input value={form.city} onChange={e => set('city', e.target.value)} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>州</label>
+                                <Input value={form.state} disabled className="bg-muted" />
+                            </div>
+                            <div>
+                                <label className={labelClass}>邮编 *</label>
+                                <Input value={form.zip} onChange={e => set('zip', e.target.value)} />
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={!!form.mailingSame} onChange={e => setForm(prev => ({ ...prev, mailingSame: e.target.checked }))} />
+                            邮寄地址与居住地址相同
+                        </label>
+                        {!form.mailingSame && (
+                            <>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                    <div className="sm:col-span-3">
+                                        <label className={labelClass}>邮寄街道地址</label>
+                                        <Input value={form.mailAddress} onChange={e => set('mailAddress', e.target.value)} />
+                                    </div>
+                                    <div>
+                                        {optLabel('公寓/单元号')}
+                                        <Input value={form.mailApt} onChange={e => set('mailApt', e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div><label className={labelClass}>城市</label><Input value={form.mailCity} onChange={e => set('mailCity', e.target.value)} /></div>
+                                    <div><label className={labelClass}>州</label><Input value={form.mailState} onChange={e => set('mailState', e.target.value)} /></div>
+                                    <div><label className={labelClass}>邮编</label><Input value={form.mailZip} onChange={e => set('mailZip', e.target.value)} /></div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* 4. SSN */}
+                <div>
+                    {optLabel('社会安全号码 (SSN)')}
+                    <Input type="text" placeholder="XXX-XX-XXXX" value={form.ssn} onChange={e => set('ssn', e.target.value)} className="max-w-xs" />
+                </div>
+
+                {/* 5. Tax Info */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">报税信息</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className={labelClass}>报税状态 *</label>
+                            <select value={form.taxStatus} onChange={e => set('taxStatus', e.target.value)} className={selectClass}>
+                                <option value="">请选择</option>
+                                <option value="Single">单身报税</option>
+                                <option value="MarriedJointly">已婚联合报税</option>
+                                <option value="HeadOfHousehold">户主报税</option>
+                                <option value="MarriedSeparately">已婚分开报税</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 6. Income */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">收入信息</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className={labelClass}>年收入总额 (税前) *</label>
+                            <Input type="text" placeholder="例如: 60000" value={form.annualIncome} onChange={e => set('annualIncome', e.target.value)} />
+                        </div>
+                        <div>
+                            <label className={labelClass}>收入类型</label>
+                            <select value={form.incomeType} onChange={e => set('incomeType', e.target.value)} className={selectClass}>
+                                <option value="employment">工资/薪水</option>
+                                <option value="selfEmployment">自雇/个体经营</option>
+                                <option value="investment">投资收入</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 7. Special Enrollment */}
+                <div>
+                    {optLabel('特殊投保事件')}
+                    <select value={form.qualifyingEvent} onChange={e => set('qualifyingEvent', e.target.value)} className={`${selectClass} max-w-md`}>
+                        <option value="">无 / 开放投保期</option>
+                        <option value="lostCoverage">失去原有保险</option>
+                        <option value="moved">搬迁至新地区</option>
+                        <option value="married">结婚</option>
+                        <option value="newBaby">新生儿/领养</option>
+                        <option value="lostMedicaid">失去 Medi-Cal 资格</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-2">
                     <Button variant="outline" className="flex-1" onClick={onBack}>
                         返回选择
                     </Button>
                     <Button className="flex-1" disabled={!isValid}
-                        onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.email}, ${form.phone}`)}>
+                        onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.phone}, ${form.email || '无邮箱'}`)}>
                         提交申请
                     </Button>
                 </div>
