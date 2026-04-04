@@ -95,28 +95,34 @@ def scrape_quote(quote_id, zip_code, income, ages):
             # Fill zip code
             report_status(quote_id, "scraping", f"Entering ZIP code {zip_code}...")
             print("Filling zip code...")
+            zip_input = page.locator('#zip')
+            zip_input.wait_for(state="visible", timeout=10000)
+            zip_input.click()
+            zip_input.fill(zip_code)
+            page.wait_for_timeout(1000)
+
+            # Check for "Zip Code is not in Service Area" dialog
+            page.wait_for_timeout(2000)
+            service_area_dialog = page.locator('text=not in Service Area')
+            if service_area_dialog.count() > 0:
+                raise Exception(f"邮编 {zip_code} 不在加州健保服务范围内，请使用有效的加州邮编")
+
+            # Close any other popup dialog
             try:
-                zip_input = page.locator('input[placeholder*="Zip" i], input[aria-label*="Zip" i]').first
-                zip_input.wait_for(state="visible", timeout=10000)
-                zip_input.click()
-                zip_input.fill(zip_code)
+                dialog_btn = page.locator('div[role="presentation"] button:has-text("Okay"), div[role="presentation"] button:has-text("OK"), div[role="presentation"] button:has-text("Close")')
+                if dialog_btn.count() > 0:
+                    dialog_btn.first.click(force=True)
+                    page.wait_for_timeout(1000)
             except:
-                zip_input = page.get_by_role("textbox").filter(has_text="Zip").first
-                zip_input.click()
-                zip_input.fill(zip_code)
+                pass
 
             # Fill income
             report_status(quote_id, "scraping", f"Entering income ${income}...")
             print("Filling income...")
-            try:
-                income_input = page.locator('input[placeholder*="Income" i], input[aria-label*="Income" i]').first
-                income_input.wait_for(state="visible", timeout=10000)
-                income_input.click()
-                income_input.fill(income)
-            except:
-                income_input = page.get_by_role("textbox").filter(has_text="Income").first
-                income_input.click()
-                income_input.fill(income)
+            income_input = page.locator('#houseHoldIncome')
+            income_input.wait_for(state="visible", timeout=10000)
+            income_input.click()
+            income_input.fill(income)
 
             # Set household size
             report_status(quote_id, "scraping", f"Setting household size to {len(ages)}...")

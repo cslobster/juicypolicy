@@ -1181,7 +1181,7 @@ const QuotePage: React.FC = () => {
                             id: Date.now().toString(),
                             sender: 'bot' as const,
                             text: `报价抓取失败: ${quoteData.quote_data?.error || '未知错误'}`,
-                            options: ['重试'],
+                            options: ['重试', '重新报价'],
                         }];
                     });
                     return;
@@ -1317,6 +1317,13 @@ const QuotePage: React.FC = () => {
         if (textToSend === '重试' && lastQuoteData) {
             setMessages(prev => prev.filter(m => !m.options));
             triggerHealthQuote(lastQuoteData);
+            return;
+        }
+        if (textToSend === '重新报价') {
+            setMessages([getInitialMessage()]);
+            setChatStage(1);
+            setStep(1);
+            setLastQuoteData(null);
             return;
         }
 

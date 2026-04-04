@@ -93,46 +93,33 @@ def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]
 
             # Fill zip code
             update_status("scraping", f"Entering ZIP code {zip_code}...")
-            zip_filled = False
-            for selector in [
-                'input[placeholder*="Zip" i]',
-                'input[aria-label*="Zip" i]',
-                'input[name*="zip" i]',
-                '#zipCode',
-                'input[type="text"]',
-            ]:
-                try:
-                    el = page.locator(selector).first
-                    el.wait_for(state="visible", timeout=5000)
-                    el.click()
-                    el.fill(zip_code)
-                    zip_filled = True
-                    break
-                except:
-                    continue
-            if not zip_filled:
-                raise Exception("Could not find zip code input")
+            zip_input = page.locator('#zip')
+            zip_input.wait_for(state="visible", timeout=10000)
+            zip_input.click()
+            zip_input.fill(zip_code)
+            page.wait_for_timeout(1000)
+
+            # Check for "Zip Code is not in Service Area" dialog
+            page.wait_for_timeout(2000)
+            service_area_dialog = page.locator('text=not in Service Area')
+            if service_area_dialog.count() > 0:
+                raise Exception(f"邮编 {zip_code} 不在加州健保服务范围内，请使用有效的加州邮编")
+
+            # Close any other popup dialog
+            try:
+                dialog_btn = page.locator('div[role="presentation"] button:has-text("Okay"), div[role="presentation"] button:has-text("OK"), div[role="presentation"] button:has-text("Close")')
+                if dialog_btn.count() > 0:
+                    dialog_btn.first.click(force=True)
+                    page.wait_for_timeout(1000)
+            except:
+                pass
 
             # Fill income
             update_status("scraping", f"Entering income ${income}...")
-            income_filled = False
-            for selector in [
-                'input[placeholder*="Income" i]',
-                'input[aria-label*="Income" i]',
-                'input[name*="income" i]',
-                '#income',
-            ]:
-                try:
-                    el = page.locator(selector).first
-                    el.wait_for(state="visible", timeout=5000)
-                    el.click()
-                    el.fill(income)
-                    income_filled = True
-                    break
-                except:
-                    continue
-            if not income_filled:
-                raise Exception("Could not find income input")
+            income_input = page.locator('#houseHoldIncome')
+            income_input.wait_for(state="visible", timeout=10000)
+            income_input.click()
+            income_input.fill(income)
 
             # Set household size
             update_status("scraping", f"Setting household size to {len(ages)}...")
