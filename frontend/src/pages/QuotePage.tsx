@@ -221,7 +221,7 @@ interface Message {
     options?: string[];
     quotesList?: QuotePlan[];
     isTyping?: boolean;
-    interactiveWidget?: 'country_selector' | 'travel_details' | 'life_details' | 'health_details' | 'health_enroll' | 'enrollment_form' | 'payment_checkout';
+    interactiveWidget?: 'country_selector' | 'travel_details' | 'life_details' | 'health_details' | 'health_form' | 'health_enroll' | 'enrollment_form' | 'payment_checkout';
     selectedPlanContext?: QuotePlan;
     imageUrl?: string;
 }
@@ -370,7 +370,7 @@ const LifeDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => void 
     );
 };
 
-const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) => void }> = ({ plan, onSubmit }) => {
+const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) => void; onBack: () => void }> = ({ plan, onSubmit, onBack }) => {
     const [form, setForm] = useState({
         firstName: '', lastName: '', dob: '', gender: '',
         ssn: '', email: '', phone: '',
@@ -450,114 +450,149 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                     <Input type="text" placeholder="XXX-XX-XXXX" value={form.ssn} onChange={e => set('ssn', e.target.value)} />
                 </div>
 
-                <Button className="w-full" disabled={!isValid}
-                    onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.email}, ${form.phone}`)}>
-                    提交申请
-                </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={onBack}>
+                        返回选择
+                    </Button>
+                    <Button className="flex-1" disabled={!isValid}
+                        onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.email}, ${form.phone}`)}>
+                        提交申请
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );
 };
 
-const HealthDetailsWidget: React.FC<{ zip: string; onSubmit: (text: string, data: any) => void }> = ({ zip, onSubmit }) => {
-    const [members, setMembers] = useState<HouseholdMember[]>([{ age: '', sex: '' }]);
+const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit }) => {
+    const [zip, setZip] = useState('');
+    const [age, setAge] = useState('');
+    const [sex, setSex] = useState('');
     const [income, setIncome] = useState('');
+    const [additionalMembers, setAdditionalMembers] = useState<HouseholdMember[]>([]);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const addMember = () => setMembers([...members, { age: '', sex: '' }]);
-    const removeMember = (idx: number) => {
-        if (members.length <= 1) return;
-        setMembers(members.filter((_, i) => i !== idx));
-    };
+    const addMember = () => setAdditionalMembers([...additionalMembers, { age: '', sex: '' }]);
+    const removeMember = (idx: number) => setAdditionalMembers(additionalMembers.filter((_, i) => i !== idx));
     const updateMember = (idx: number, field: keyof HouseholdMember, val: string) => {
-        const updated = [...members];
+        const updated = [...additionalMembers];
         updated[idx] = { ...updated[idx], [field]: val };
-        setMembers(updated);
+        setAdditionalMembers(updated);
     };
 
-    const isValid = members.every(m => m.age && m.sex) && income;
+    const validate = () => {
+        const errs: Record<string, string> = {};
+        if (!zip || !/^\d{5}$/.test(zip)) errs.zip = '请输入5位有效邮编';
+        if (!age || parseInt(age) < 0 || parseInt(age) > 120) errs.age = '请输入有效年龄';
+        if (!sex) errs.sex = '请选择性别';
+        if (!income || isNaN(Number(income.replace(/[,$]/g, ''))) || Number(income.replace(/[,$]/g, '')) <= 0) errs.income = '请输入有效收入';
+        additionalMembers.forEach((m, i) => {
+            if (!m.age || parseInt(m.age) < 0 || parseInt(m.age) > 120) errs[`member_age_${i}`] = '请输入有效年龄';
+            if (!m.sex) errs[`member_sex_${i}`] = '请选择性别';
+        });
+        setErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
 
     const handleSubmit = () => {
-        if (!isValid) return;
-        const primary = members[0];
-        const otherAges = members.slice(1).map(m => parseInt(m.age));
-        const summary = members.map((m, i) => `${i === 0 ? '主申请人' : `成员${i + 1}`}: ${m.age}岁, ${m.sex === 'M' ? '男' : '女'}`).join('; ');
-        onSubmit(`${summary}. 家庭年收入: $${income}`, {
+        if (!validate()) return;
+        const otherAges = additionalMembers.map(m => parseInt(m.age));
+        onSubmit({
             name: 'Primary',
-            sex: primary.sex === 'M' ? 'Male' : 'Female',
-            age: parseInt(primary.age),
+            sex: sex === 'M' ? 'Male' : 'Female',
+            age: parseInt(age),
             zip,
-            income,
-            household_size: members.length,
-            ages_list: otherAges.length > 0 ? otherAges : undefined,
-            members,
+            income: income.replace(/[,$]/g, ''),
+            household_size: 1 + additionalMembers.length,
+            ages_list: otherAges.length > 0 ? otherAges : [],
         });
     };
 
+    const inputClass = "flex h-10 w-full rounded-lg border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    const selectClass = `${inputClass} appearance-none`;
+    const errClass = "text-xs text-red-500 mt-0.5";
+
     return (
-        <Card className="animate-fade-in mt-6">
-            <CardContent className="pt-6">
-                <h4 className="mb-4 text-primary font-serif text-lg">家庭成员信息</h4>
-                <p className="text-sm text-muted-foreground mb-4">邮编: <strong>{zip}</strong></p>
-
-                {members.map((member, idx) => (
-                    <div key={idx} className="flex gap-4 mb-4 items-end">
-                        <div className="flex-1">
-                            <label className="block text-sm mb-1 text-foreground font-medium">
-                                {idx === 0 ? '主申请人年龄' : `成员 ${idx + 1} 年龄`}
-                            </label>
-                            <Input
-                                type="number"
-                                placeholder="例如: 35"
-                                value={member.age}
-                                onChange={e => updateMember(idx, 'age', e.target.value)}
-                            />
-                        </div>
-                        <div className="flex-1">
-                            <label className="block text-sm mb-1 text-foreground font-medium">性别</label>
-                            <select
-                                value={member.sex}
-                                onChange={e => updateMember(idx, 'sex', e.target.value)}
-                                className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            >
-                                <option value="" disabled>请选择</option>
-                                <option value="M">男 (M)</option>
-                                <option value="F">女 (F)</option>
-                            </select>
-                        </div>
-                        {members.length > 1 && (
-                            <button onClick={() => removeMember(idx)} className="bg-transparent border-none text-destructive cursor-pointer p-2 mb-0.5">
-                                <Trash size={18} />
-                            </button>
-                        )}
+        <Card className="animate-fade-in mt-4">
+            <CardContent className="pt-5">
+            <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm mb-1 font-medium">邮编 (ZIP)</label>
+                        <input type="text" maxLength={5} placeholder="例如: 92602" value={zip}
+                            onChange={e => setZip(e.target.value.replace(/\D/g, ''))}
+                            className={`${inputClass} ${errors.zip ? 'border-red-500' : 'border-input'}`} />
+                        {errors.zip && <p className={errClass}>{errors.zip}</p>}
                     </div>
-                ))}
-
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={addMember}
-                    className="mb-6 flex items-center gap-2"
-                >
-                    <Plus size={16} /> 添加家庭成员
-                </Button>
-
-                <div className="mb-6">
-                    <label className="block text-sm mb-1 text-foreground font-medium">家庭年收入 (USD)</label>
-                    <Input
-                        type="text"
-                        placeholder="例如: 60000"
-                        value={income}
-                        onChange={e => setIncome(e.target.value)}
-                    />
+                    <div>
+                        <label className="block text-sm mb-1 font-medium">年龄</label>
+                        <input type="number" placeholder="例如: 35" value={age}
+                            onChange={e => setAge(e.target.value)}
+                            className={`${inputClass} ${errors.age ? 'border-red-500' : 'border-input'}`} />
+                        {errors.age && <p className={errClass}>{errors.age}</p>}
+                    </div>
                 </div>
 
-                <Button className="w-full" onClick={handleSubmit} disabled={!isValid}>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm mb-1 font-medium">性别</label>
+                        <select value={sex} onChange={e => setSex(e.target.value)}
+                            className={`${selectClass} ${errors.sex ? 'border-red-500' : 'border-input'}`}>
+                            <option value="">请选择</option>
+                            <option value="M">男 (M)</option>
+                            <option value="F">女 (F)</option>
+                        </select>
+                        {errors.sex && <p className={errClass}>{errors.sex}</p>}
+                    </div>
+                    <div>
+                        <label className="block text-sm mb-1 font-medium">家庭年收入 (USD)</label>
+                        <input type="text" placeholder="例如: 60000" value={income}
+                            onChange={e => setIncome(e.target.value)}
+                            className={`${inputClass} ${errors.income ? 'border-red-500' : 'border-input'}`} />
+                        {errors.income && <p className={errClass}>{errors.income}</p>}
+                    </div>
+                </div>
+
+                {additionalMembers.length > 0 && (
+                    <div className="border-t pt-3">
+                        <p className="text-sm font-medium mb-2">其他家庭成员</p>
+                        {additionalMembers.map((m, idx) => (
+                            <div key={idx} className="flex gap-2 mb-2 items-start">
+                                <div className="flex-1">
+                                    <input type="number" placeholder="年龄" value={m.age}
+                                        onChange={e => updateMember(idx, 'age', e.target.value)}
+                                        className={`${inputClass} ${errors[`member_age_${idx}`] ? 'border-red-500' : 'border-input'}`} />
+                                </div>
+                                <div className="flex-1">
+                                    <select value={m.sex} onChange={e => updateMember(idx, 'sex', e.target.value)}
+                                        className={`${selectClass} ${errors[`member_sex_${idx}`] ? 'border-red-500' : 'border-input'}`}>
+                                        <option value="">性别</option>
+                                        <option value="M">男</option>
+                                        <option value="F">女</option>
+                                    </select>
+                                </div>
+                                <button onClick={() => removeMember(idx)} className="text-red-400 hover:text-red-600 p-2 mt-0.5">
+                                    <Trash size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <button onClick={addMember}
+                    className="flex items-center gap-1 text-sm text-primary hover:underline">
+                    <Plus size={14} /> 添加家庭成员
+                </button>
+
+                <Button className="w-full h-10" onClick={handleSubmit}>
                     生成报价
                 </Button>
+            </div>
             </CardContent>
         </Card>
     );
 };
+
 
 const EnrollmentFormWidget: React.FC<{ plan: QuotePlan, travelData: any, onSubmit: (text: string) => void }> = ({ plan, travelData, onSubmit }) => {
     // Contact State
@@ -801,11 +836,10 @@ const QuotePage: React.FC = () => {
 
     const isLifeInsurance = selectedType === '定期寿险' || selectedType === '终身寿险';
     const isHealthInsurance = selectedType === '健康保险';
-    const [healthZip, setHealthZip] = useState('');
 
     const getInitialMessage = (): Message => {
         if (isHealthInsurance) {
-            return { id: '1', sender: 'bot', text: '欢迎使用鲜橙健康保险报价！首先，请输入您的邮编 (ZIP Code)：' };
+            return { id: '1', sender: 'bot', text: '欢迎使用鲜橙健康保险报价！请填写以下信息，我们将从 加州健保 为您实时获取报价：', interactiveWidget: 'health_form' };
         }
         if (selectedType === '旅行保险') {
             return { id: '1', sender: 'bot', text: '为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？', interactiveWidget: 'country_selector' };
@@ -836,16 +870,16 @@ const QuotePage: React.FC = () => {
     const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
     const [showPlanCard, setShowPlanCard] = useState(false);
 
-    // Load previous quote from localStorage if available and not expired
+    // Load previous quote from localStorage or show form
     useEffect(() => {
         if (!isHealthInsurance || healthPlans.length > 0) return;
         try {
             const saved = localStorage.getItem('jp_health_quote_id');
-            if (!saved) return;
+            if (!saved) { /* no saved quote */ return; }
             const { id, expires } = JSON.parse(saved);
             if (Date.now() > expires) {
                 localStorage.removeItem('jp_health_quote_id');
-                return;
+                               return;
             }
             fetch(`${API_BASE}/api/quote/${id}`)
                 .then(r => { if (!r.ok) throw new Error(); return r.json(); })
@@ -855,12 +889,13 @@ const QuotePage: React.FC = () => {
                         setHealthCustomerData(data.customer_data);
                         setActiveQuoteId(data.quote_id);
                         setShowHealthResults(true);
-                    }
+                    } else {
+                                           }
                 })
-                .catch(() => { localStorage.removeItem('jp_health_quote_id'); });
+                .catch(() => { localStorage.removeItem('jp_health_quote_id'); /* no saved quote */ });
         } catch {
             localStorage.removeItem('jp_health_quote_id');
-        }
+                   }
     }, []);
 
     // Widget States
@@ -883,25 +918,13 @@ const QuotePage: React.FC = () => {
 
             // ====== HEALTH INSURANCE FLOW ======
             if (isHealthInsurance) {
-                if (chatStage === 1) { // After zip code
-                    const zip = userText.replace(/\D/g, '').slice(0, 5);
-                    setHealthZip(zip);
+                if (chatStage === 1) { // After health form submit
                     newBotMsg = {
                         id: Date.now().toString(),
                         sender: 'bot',
-                        text: `邮编 ${zip} 已确认。请填写您的家庭成员信息和收入，以便我们计算最精准的保费和补贴：`,
-                        interactiveWidget: 'health_details'
-                    };
-                    setChatStage(2);
-                } else if (chatStage === 2) { // After health details form
-                    if (widgetData) setTravelData(widgetData);
-                    newBotMsg = {
-                        id: Date.now().toString(),
-                        sender: 'bot',
-                        text: `信息已收到！鲜橙保险正在为您从 Covered California 生成最优健康保险方案...`
+                        text: `信息已收到！正在从加州健保为您获取报价...`
                     };
                     setChatStage(4);
-                    setTimeout(() => triggerHealthQuote(widgetData), 1500);
                 } else if (chatStage === 5) {
                     newBotMsg = {
                         id: Date.now().toString(),
@@ -1117,7 +1140,7 @@ const QuotePage: React.FC = () => {
             setMessages(prev => [...prev, {
                 id: `polling_${quote_id}`,
                 sender: 'bot' as const,
-                text: `报价请求 #${quote_id} 已创建，正在从 Covered California 实时抓取报价数据，请稍候... (Worker 处理中)`,
+                text: `报价请求 #${quote_id} 已创建，正在从 加州健保 实时抓取报价数据，请稍候... (Worker 处理中)`,
             }]);
 
             // Step 3: Poll for result
@@ -1144,7 +1167,7 @@ const QuotePage: React.FC = () => {
                         return [...filtered, {
                             id: Date.now().toString(),
                             sender: 'bot' as const,
-                            text: `抓取完成！从 Covered California 找到 ${rawPlans.length} 个健康保险方案。`,
+                            text: `抓取完成！从 加州健保 找到 ${rawPlans.length} 个健康保险方案。`,
                         }];
                     });
                     setShowHealthResults(true);
@@ -1416,22 +1439,64 @@ const QuotePage: React.FC = () => {
                             highlightedPlans={highlightedPlans}
                             selectedPlan={selectedViewPlan}
                             onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); setShowPlanCard(!!plan); }}
-                            onBack={() => { setShowHealthResults(false); setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
+                            onBack={() => { setShowHealthResults(false); /* no saved quote */ setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
                         />
 
                         {/* Chat panel at bottom */}
                         <div className="flex-1 overflow-y-auto px-4 py-2">
                             <div className="max-w-[768px] mx-auto flex flex-col gap-2 w-full">
                                 {/* Chat messages */}
-                                {quoteChatMessages.map((msg) => (
-                                    <div key={msg.id} className={`flex ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
+                                {quoteChatMessages.map((msg, idx) => {
+                                    const isLastBot = msg.sender === 'bot' && idx === quoteChatMessages.length - 1;
+                                    return (
+                                    <React.Fragment key={msg.id}>
+                                    <div className={`flex ${msg.sender === 'bot' ? 'justify-start' : 'justify-end'}`}>
                                         <div className={`text-sm whitespace-pre-wrap ${
                                             msg.sender === 'bot' ? 'w-full text-gray-800' : 'max-w-[85%] bg-primary text-white px-3 py-1.5 rounded-2xl'
                                         }`}>
                                             {msg.text}
                                         </div>
                                     </div>
-                                ))}
+                                    {isLastBot && !isBotTyping && selectedViewPlan && (
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            <Button size="sm" className="h-7 text-xs px-4 rounded-full" onClick={() => {
+                                                setShowHealthResults(false);
+                                                setStep(4);
+                                                setChatStage(10);
+                                                const p = selectedViewPlan;
+                                                const planSummary = `${p.plan_name} (${p.carrier}) - ${p.plan_type} ${p.network_type}\n月保费: $${p.monthly_premium?.toFixed(2)} | 免赔额: $${p.deductible?.toLocaleString()} | 最高自付: $${p.max_out_of_pocket?.toLocaleString()}`;
+                                                setMessages([
+                                                    { id: 'enroll-1', sender: 'user', text: `我想投保【${p.plan_name}】` },
+                                                    { id: 'enroll-2', sender: 'bot', text: `您选择了以下计划：\n\n${planSummary}\n\n为了完成投保，请提供以下信息：`, interactiveWidget: 'health_enroll' },
+                                                ]);
+                                                setEnrollingPlan(p);
+                                            }}>投保这个计划</Button>
+                                            {['这个计划适合我吗', '和最便宜的计划对比', '门诊看病要花多少钱'].map(q => (
+                                                <button key={q} onClick={async () => {
+                                                    if (isBotTyping || !activeQuoteId) return;
+                                                    setShowPlanCard(false);
+                                                    const userMsg: Message = { id: Date.now().toString(), sender: 'user', text: q };
+                                                    setQuoteChatMessages(prev => [...prev, userMsg]);
+                                                    setIsBotTyping(true);
+                                                    try {
+                                                        const res = await fetch(`${API_BASE}/api/chat`, {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ quote_id: activeQuoteId, message: q, history: quoteChatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), selected_plan: selectedViewPlan }),
+                                                        });
+                                                        const data = await res.json();
+                                                        setIsBotTyping(false);
+                                                        setHighlightedPlans(data.mentioned_plans || []);
+                                                        setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: data.reply }]);
+                                                    } catch { setIsBotTyping(false); setQuoteChatMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'bot', text: '抱歉，暂时无法回复。' }]); }
+                                                }}
+                                                className="h-7 text-xs px-3 rounded-full border border-gray-200 hover:bg-gray-50 text-gray-600">{q}</button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    </React.Fragment>
+                                    );
+                                })}
                                 {isBotTyping && (
                                     <div className="flex justify-start">
                                         <div className="bg-white border border-gray-200 px-3 py-1.5 rounded-2xl flex gap-1 items-center">
@@ -1577,14 +1642,21 @@ const QuotePage: React.FC = () => {
                                     <LifeDetailsWidget onSubmit={(text, data) => handleSend(text, data)} />
                                 )}
 
-                                {/* === HEALTH DETAILS WIDGET === */}
-                                {msg.interactiveWidget === 'health_details' && (
-                                    <HealthDetailsWidget zip={healthZip} onSubmit={(text, data) => handleSend(text, data)} />
+                                {/* === HEALTH QUOTE FORM WIDGET === */}
+                                {msg.interactiveWidget === 'health_form' && (
+                                    <HealthQuoteForm onSubmit={(data) => {
+                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}`;
+                                        handleSend(summary);
+                                        triggerHealthQuote(data);
+                                    }} />
                                 )}
 
                                 {/* === HEALTH ENROLL WIDGET === */}
                                 {msg.interactiveWidget === 'health_enroll' && enrollingPlan && (
-                                    <HealthEnrollWidget plan={enrollingPlan} onSubmit={(text) => {
+                                    <HealthEnrollWidget plan={enrollingPlan} onBack={() => {
+                                        setShowHealthResults(true);
+                                        setStep(3);
+                                    }} onSubmit={(text) => {
                                         setMessages(prev => [
                                             ...prev.map(m => ({ ...m, interactiveWidget: undefined as any })),
                                             { id: Date.now().toString(), sender: 'user' as const, text },
@@ -1700,7 +1772,7 @@ const QuotePage: React.FC = () => {
                 </div>
                 )}
 
-                <div className="px-4 py-3 bg-white relative max-w-[768px] mx-auto w-full">
+                <div className="px-4 py-3 bg-white relative max-w-[768px] mx-auto w-full shrink-0">
                     <input
                         type="file"
                         ref={fileInputRef}

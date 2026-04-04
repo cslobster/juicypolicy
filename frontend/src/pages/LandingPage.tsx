@@ -72,7 +72,7 @@ const LandingPage: React.FC = () => {
                             <ProductCard
                                 icon={<ShieldPlus size={40} className="text-emerald-500" strokeWidth={1.5} />}
                                 title="健康保险"
-                                desc="Covered California 实时比价"
+                                desc="加州健保 实时比价"
                                 tagLine="热门"
                                 tagVariant="warning"
                                 onClick={() => handleQuote('health')}
