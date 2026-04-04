@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plane, Car, Home, Activity, ChevronRight } from 'lucide-react';
+import { Plane, Car, Home, Activity, ChevronRight, ShieldPlus } from 'lucide-react';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -44,7 +44,7 @@ const LandingPage: React.FC = () => {
     const navigate = useNavigate();
 
     const handleQuote = (type: string) => {
-        navigate('/quote?type=' + type);
+        navigate('/quote/' + type);
     };
 
     return (
@@ -70,11 +70,17 @@ const LandingPage: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-6 pb-6">
                             <ProductCard
+                                icon={<ShieldPlus size={40} className="text-emerald-500" strokeWidth={1.5} />}
+                                title="健康保险"
+                                desc="Covered California 实时比价"
+                                tagLine="热门"
+                                tagVariant="warning"
+                                onClick={() => handleQuote('health')}
+                            />
+                            <ProductCard
                                 icon={<Plane size={40} className="text-sky-400" strokeWidth={1.5} />}
                                 title="旅行保险"
                                 desc="涵盖医疗、延误、行程取消等"
-                                tagLine="热门"
-                                tagVariant="warning"
                                 onClick={() => handleQuote('travel')}
                             />
                             <ProductCard

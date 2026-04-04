@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { CheckCircle2, ShieldAlert, Star, Plus, Trash, ArrowUp, Image as ImageIcon, Search } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -777,8 +777,7 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
 
 const QuotePage: React.FC = () => {
     const [step, setStep] = useState(1);
-    const location = useLocation();
-    const typeParam = new URLSearchParams(location.search).get('type') || 'unknown';
+    const { type: typeParam = 'unknown' } = useParams();
 
     const typeMap: Record<string, string> = {
         'health': '健康保险',
