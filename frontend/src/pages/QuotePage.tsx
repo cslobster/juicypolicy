@@ -819,8 +819,7 @@ const QuotePage: React.FC = () => {
         'travel': '旅行保险',
         'auto': '汽车保险',
         'property': '财产与房屋',
-        'term-life': '定期寿险',
-        'whole-life': '终身寿险',
+        'life': '人寿保险',
         'other': '其他保障',
     };
 
@@ -834,7 +833,7 @@ const QuotePage: React.FC = () => {
         { num: 5, label: '完成' }
     ];
 
-    const isLifeInsurance = selectedType === '定期寿险' || selectedType === '终身寿险';
+    const isLifeInsurance = selectedType === '人寿保险';
     const isHealthInsurance = selectedType === '健康保险';
 
     const getInitialMessage = (): Message => {
@@ -1401,7 +1400,7 @@ const QuotePage: React.FC = () => {
     };
 
     return (
-        <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-[calc(100vh-4rem)] w-full">
+        <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-full w-full">
 
             <div className="px-6 py-2 flex items-center gap-3">
                 <h2 className="text-lg font-semibold font-serif shrink-0">{selectedType}</h2>

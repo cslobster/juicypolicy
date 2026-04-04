@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 const navItems = [
     { path: '/', label: '首页', icon: Home },
     { path: '/quote/health', label: '健保', icon: ShieldPlus },
-    { path: '/quote/term-life', label: '人寿', icon: HeartPulse },
+    { path: '/quote/life', label: '人寿', icon: HeartPulse },
     { path: '/quote/travel', label: '旅行', icon: Plane },
     { path: '/quote/property', label: '财产', icon: Building2 },
     { path: '/agents', label: '经纪网络', icon: Users },

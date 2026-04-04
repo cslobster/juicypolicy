@@ -17,9 +17,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col h-screen overflow-hidden">
           <Header />
-          <main className="flex-1">
+          <main className="flex-1 overflow-hidden">
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/quote/:type" element={<QuotePageWrapper />} />

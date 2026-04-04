@@ -17,7 +17,7 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ icon, title, desc, tagLine, tagVariant = 'default', onClick }) => {
     return (
         <Card
-            className="relative p-5 cursor-pointer transition hover:-translate-y-1 hover:shadow-md hover:border-slate-300"
+            className="relative p-5 cursor-pointer border-slate-100 shadow-[0_15px_50px_-24px_rgba(15,23,42,0.4)] transition hover:-translate-y-1 hover:border-slate-200"
             onClick={onClick}
         >
             {tagLine && (
@@ -48,8 +48,8 @@ const LandingPage: React.FC = () => {
     };
 
     return (
-        <div className="animate-in fade-in duration-500">
-            <section className="relative bg-gradient-to-b from-slate-50 via-white to-slate-100 h-[calc(100vh-4rem)] overflow-hidden">
+        <div className="animate-in fade-in duration-500 h-full overflow-hidden">
+            <section className="relative bg-gradient-to-b from-slate-50 via-white to-slate-100 h-full">
                 {/* Hero top */}
                 <div className="flex justify-between max-w-6xl mx-auto px-6 pt-8">
                     <div className="flex-1 max-w-2xl pt-4">
@@ -85,15 +85,9 @@ const LandingPage: React.FC = () => {
                             />
                             <ProductCard
                                 icon={<Activity size={40} className="text-teal-500" strokeWidth={1.5} />}
-                                title="定期寿险"
-                                desc="即时获批，经济实惠的家庭保障"
-                                onClick={() => handleQuote('term-life')}
-                            />
-                            <ProductCard
-                                icon={<Activity size={40} className="text-orange-500" strokeWidth={1.5} />}
-                                title="终身寿险"
-                                desc="终身有效且包含现金价值累积"
-                                onClick={() => handleQuote('whole-life')}
+                                title="人寿保险"
+                                desc="为家庭提供经济保障与安心"
+                                onClick={() => handleQuote('life')}
                             />
                             <ProductCard
                                 icon={<Car size={40} className="text-cyan-500" strokeWidth={1.5} />}
@@ -132,6 +126,9 @@ const LandingPage: React.FC = () => {
                     <Button variant="outline" className="gap-1">
                         寻找保险经纪 <ChevronRight size={14} />
                     </Button>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 py-3 text-center text-xs text-muted-foreground">
+                    &copy; {new Date().getFullYear()} 鲜橙保险 JuicyPolicy. All rights reserved.
                 </div>
             </section>
         </div>
