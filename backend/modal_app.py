@@ -50,12 +50,15 @@ env_secret = modal.Secret.from_name("juicypolicy-env")
 
 @app.function(image=worker_image, secrets=[env_secret], timeout=600)
 def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]):
-    """Modal function that scrapes CoveredCA and writes results to DB."""
+    """Modal function that scrapes CoveredCA with retry on stuck stages."""
     import traceback
     from playwright.sync_api import sync_playwright
     from app.database import SessionLocal
     from app import models
     from app.quote_service import convert_quote_text_to_json
+
+    MAX_RETRIES = 3
+    STAGE_TIMEOUT = 60000  # 60s per stage
 
     db = SessionLocal()
 
@@ -66,20 +69,18 @@ def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]
             quote.status_message = message
             db.commit()
 
-    try:
-        update_status("scraping", "Launching browser...")
-        print(f"Processing Quote #{quote_id}: ZIP={zip_code}, Income={income}, Ages={ages}")
-
+    def do_scrape():
+        """Run the full scrape. Raises on any failure so caller can retry."""
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context()
             page = context.new_page()
-            page.set_default_timeout(300000)
+            page.set_default_timeout(STAGE_TIMEOUT)
 
             update_status("scraping", "Opening CoveredCA website...")
-            page.goto("https://apply.coveredca.com/lw-shopandcompare/", timeout=60000)
-            page.wait_for_load_state("networkidle", timeout=60000)
-            page.wait_for_timeout(2000)
+            page.goto("https://apply.coveredca.com/lw-shopandcompare/", timeout=STAGE_TIMEOUT)
+            page.wait_for_load_state("networkidle", timeout=STAGE_TIMEOUT)
+            page.wait_for_timeout(3000)
 
             # Close popups
             try:
@@ -92,27 +93,46 @@ def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]
 
             # Fill zip code
             update_status("scraping", f"Entering ZIP code {zip_code}...")
-            try:
-                zip_input = page.locator('input[placeholder*="Zip" i], input[aria-label*="Zip" i]').first
-                zip_input.wait_for(state="visible", timeout=10000)
-                zip_input.click()
-                zip_input.fill(zip_code)
-            except:
-                zip_input = page.get_by_role("textbox").filter(has_text="Zip").first
-                zip_input.click()
-                zip_input.fill(zip_code)
+            zip_filled = False
+            for selector in [
+                'input[placeholder*="Zip" i]',
+                'input[aria-label*="Zip" i]',
+                'input[name*="zip" i]',
+                '#zipCode',
+                'input[type="text"]',
+            ]:
+                try:
+                    el = page.locator(selector).first
+                    el.wait_for(state="visible", timeout=5000)
+                    el.click()
+                    el.fill(zip_code)
+                    zip_filled = True
+                    break
+                except:
+                    continue
+            if not zip_filled:
+                raise Exception("Could not find zip code input")
 
             # Fill income
             update_status("scraping", f"Entering income ${income}...")
-            try:
-                income_input = page.locator('input[placeholder*="Income" i], input[aria-label*="Income" i]').first
-                income_input.wait_for(state="visible", timeout=10000)
-                income_input.click()
-                income_input.fill(income)
-            except:
-                income_input = page.get_by_role("textbox").filter(has_text="Income").first
-                income_input.click()
-                income_input.fill(income)
+            income_filled = False
+            for selector in [
+                'input[placeholder*="Income" i]',
+                'input[aria-label*="Income" i]',
+                'input[name*="income" i]',
+                '#income',
+            ]:
+                try:
+                    el = page.locator(selector).first
+                    el.wait_for(state="visible", timeout=5000)
+                    el.click()
+                    el.fill(income)
+                    income_filled = True
+                    break
+                except:
+                    continue
+            if not income_filled:
+                raise Exception("Could not find income input")
 
             # Set household size
             update_status("scraping", f"Setting household size to {len(ages)}...")
@@ -132,11 +152,11 @@ def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]
             update_status("scraping", "Submitting form to CoveredCA...")
             result_button = page.get_by_test_id("result-button")
             result_button_handle = result_button.element_handle()
-            page.wait_for_function("button => !button.disabled", arg=result_button_handle, timeout=60000)
+            page.wait_for_function("button => !button.disabled", arg=result_button_handle, timeout=STAGE_TIMEOUT)
             result_button.click()
             page.wait_for_timeout(2000)
             page.get_by_role("button", name="Continue").click()
-            page.wait_for_load_state("networkidle", timeout=60000)
+            page.wait_for_load_state("networkidle", timeout=STAGE_TIMEOUT)
 
             # Navigate to results
             update_status("scraping", "Waiting for CoveredCA to calculate plans...")
@@ -178,8 +198,27 @@ def scrape_quote_task(quote_id: int, zip_code: str, income: str, ages: list[int]
             context.close()
             browser.close()
 
-            result_text = "\n\n".join(results_text)
-            print(f"Scraped {len(results_text)} pages")
+            return "\n\n".join(results_text)
+
+    try:
+        print(f"Processing Quote #{quote_id}: ZIP={zip_code}, Income={income}, Ages={ages}")
+
+        result_text = None
+        last_error = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                update_status("scraping", f"Launching browser... (attempt {attempt}/{MAX_RETRIES})")
+                result_text = do_scrape()
+                print(f"Attempt {attempt} succeeded, scraped data")
+                break
+            except Exception as e:
+                last_error = e
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt < MAX_RETRIES:
+                    update_status("scraping", f"Attempt {attempt} failed, retrying...")
+
+        if result_text is None:
+            raise Exception(f"All {MAX_RETRIES} attempts failed. Last error: {last_error}")
 
         # Convert with Gemini
         update_status("converting", "Parsing plan data with AI...")

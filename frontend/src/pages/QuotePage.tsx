@@ -831,6 +831,7 @@ const QuotePage: React.FC = () => {
     const [showHealthResults, setShowHealthResults] = useState(false);
     const [enrollingPlan, setEnrollingPlan] = useState<HealthPlan | null>(null);
     const [activeQuoteId, setActiveQuoteId] = useState<number | null>(null);
+    const [lastQuoteData, setLastQuoteData] = useState<any>(null);
     const [quoteChatMessages, setQuoteChatMessages] = useState<Message[]>([]);
     const [highlightedPlans, setHighlightedPlans] = useState<string[]>([]);
     const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
@@ -1090,6 +1091,7 @@ const QuotePage: React.FC = () => {
     };
 
     const triggerHealthQuote = async (data: any) => {
+        setLastQuoteData(data);
         setIsBotTyping(true);
         setStep(3);
 
@@ -1157,7 +1159,8 @@ const QuotePage: React.FC = () => {
                         return [...filtered, {
                             id: Date.now().toString(),
                             sender: 'bot' as const,
-                            text: `报价抓取失败: ${quoteData.quote_data?.error || '未知错误'}。请稍后重试。`,
+                            text: `报价抓取失败: ${quoteData.quote_data?.error || '未知错误'}`,
+                            options: ['重试'],
                         }];
                     });
                     return;
@@ -1288,6 +1291,13 @@ const QuotePage: React.FC = () => {
     const handleSend = async (textOverride?: string, widgetData?: any, imageBase64?: string) => {
         const textToSend = textOverride || input;
         if ((!textToSend.trim() && !imageBase64) || isBotTyping) return;
+
+        // Handle retry
+        if (textToSend === '重试' && lastQuoteData) {
+            setMessages(prev => prev.filter(m => !m.options));
+            triggerHealthQuote(lastQuoteData);
+            return;
+        }
 
         // Clear widgets/options from previous bot messages
         const updatedMessages = messages.map(msg => ({
