@@ -383,8 +383,26 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
         taxStatus: '',
         annualIncome: '', incomeType: 'employment',
         qualifyingEvent: '',
+        idType: '',
     });
+    const [uploadedFiles, setUploadedFiles] = useState<{ name: string; preview: string }[]>([]);
+    const idInputRef = useRef<HTMLInputElement>(null);
     const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        Array.from(files).forEach(file => {
+            if (file.size > 10 * 1024 * 1024) { alert('文件大小不能超过 10MB'); return; }
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                setUploadedFiles(prev => [...prev, { name: file.name, preview: ev.target?.result as string }]);
+            };
+            reader.readAsDataURL(file);
+        });
+        e.target.value = '';
+    };
+    const removeFile = (idx: number) => setUploadedFiles(prev => prev.filter((_, i) => i !== idx));
     const isValid = form.firstName && form.lastName && form.dob && form.gender && form.phone && form.address && form.city && form.zip && form.taxStatus && form.annualIncome;
 
     const labelClass = "block text-xs mb-0.5 text-muted-foreground";
@@ -575,6 +593,56 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                         <option value="lostMedicaid">失去 Medi-Cal 资格</option>
                         <option value="other">其他</option>
                     </select>
+                </div>
+
+                {/* 8. Identity Verification */}
+                <div>
+                    <h4 className="text-sm font-semibold mb-2">身份验证</h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                        请上传以下任一证件照片来验证身份：驾照、护照、州政府ID，或其他有效身份证件。
+                    </p>
+                    <div className="mb-3">
+                        <label className={labelClass}>证件类型</label>
+                        <select value={form.idType} onChange={e => set('idType', e.target.value)} className={`${selectClass} max-w-xs`}>
+                            <option value="">请选择</option>
+                            <option value="driverLicense">驾驶执照</option>
+                            <option value="passport">美国护照</option>
+                            <option value="foreignPassport">外国护照</option>
+                            <option value="stateId">州政府ID</option>
+                            <option value="consularId">领事馆证件</option>
+                        </select>
+                    </div>
+                    <input
+                        ref={idInputRef}
+                        type="file"
+                        accept="image/*,.pdf,.jpg,.jpeg,.png,.tiff,.gif"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="hidden"
+                    />
+                    <div
+                        onClick={() => idInputRef.current?.click()}
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-blue-50/30 transition"
+                    >
+                        <div className="text-2xl mb-1">📤</div>
+                        <p className="text-sm text-muted-foreground">点击上传证件照片</p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">支持 JPG, PNG, PDF, TIFF (最大 10MB)</p>
+                    </div>
+                    {uploadedFiles.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                            {uploadedFiles.map((file, idx) => (
+                                <div key={idx} className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
+                                    {file.preview.startsWith('data:image') ? (
+                                        <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded" />
+                                    ) : (
+                                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-xs">PDF</div>
+                                    )}
+                                    <span className="text-sm flex-1 truncate">{file.name}</span>
+                                    <button onClick={() => removeFile(idx)} className="text-red-400 hover:text-red-600 text-xs shrink-0">删除</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Buttons */}
