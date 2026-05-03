@@ -60,8 +60,11 @@ const LandingPage: React.FC = () => {
                             </div>
                         </div>
                     </section>
+                </main>
 
-                    <section className="mt-48 shrink-0">
+                {/* 3-step section, absolutely anchored to overlap the dark bar */}
+                <section className="pointer-events-none absolute inset-x-0 bottom-[80px] z-10 px-5 sm:px-6 lg:px-8">
+                    <div className="pointer-events-auto mx-auto max-w-6xl">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-orange-600">投保流程</p>
@@ -75,7 +78,7 @@ const LandingPage: React.FC = () => {
 
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             {steps.map(([title, desc], index) => (
-                                <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div key={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-12px_rgba(15,23,42,0.25)]">
                                     <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white">
                                         {index + 1}
                                     </div>
@@ -84,24 +87,24 @@ const LandingPage: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </section>
 
-                    <div className="absolute bottom-12 left-0 right-0 flex items-center justify-between bg-[#103b35] px-10 py-4 text-white">
-                            <div className="flex items-start gap-3">
-                                <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-300" />
-                                <div>
-                                    <h2 className="text-base font-bold text-white">需要先问清楚再选择？</h2>
-                                    <p className="mt-1 text-sm text-white/75">
-                                        可以继续询问保费、免赔额、门诊、急诊和处方药费用。
-                                    </p>
-                                </div>
-                            </div>
-                            <Button onClick={() => navigate('/quote/health')} size="sm" className="hidden rounded-full bg-white px-5 text-[#103b35] hover:bg-orange-50 sm:inline-flex">
-                                获取报价
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
+                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-between bg-[#103b35] px-10 py-4 text-white">
+                    <div className="flex items-start gap-3">
+                        <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-300" />
+                        <div>
+                            <h2 className="text-base font-bold text-white">需要先问清楚再选择？</h2>
+                            <p className="mt-1 text-sm text-white/75">
+                                可以继续询问保费、免赔额、门诊、急诊和处方药费用。
+                            </p>
                         </div>
-                    </section>
-                </main>
+                    </div>
+                    <Button onClick={() => navigate('/quote/health')} size="sm" className="hidden rounded-full bg-white px-5 text-[#103b35] hover:bg-orange-50 sm:inline-flex">
+                        获取报价
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                </div>
 
                 <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 bg-white py-3 text-center text-xs text-muted-foreground">
                     &copy; {new Date().getFullYear()} 鲜橙保险 JuicyPolicy. All rights reserved.
