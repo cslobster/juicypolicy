@@ -63,7 +63,7 @@ const LandingPage: React.FC = () => {
                 </main>
 
                 {/* 3-step section, absolutely anchored to overlap the dark bar */}
-                <section className="pointer-events-none absolute inset-x-0 bottom-[160px] z-10 px-5 sm:px-6 lg:px-8">
+                <section className="pointer-events-none absolute inset-x-0 bottom-[160px] z-10 hidden px-5 sm:px-6 lg:block lg:px-8">
                     <div className="pointer-events-auto mx-auto max-w-6xl">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
@@ -90,7 +90,7 @@ const LandingPage: React.FC = () => {
                     </div>
                 </section>
 
-                <div className="absolute bottom-12 left-0 right-0 flex items-center justify-between bg-[#103b35] px-10 py-4 text-white">
+                <div className="absolute bottom-12 left-0 right-0 hidden items-center justify-between bg-[#103b35] px-10 py-4 text-white lg:flex">
                     <div className="flex items-start gap-3">
                         <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-300" />
                         <div>
