@@ -126,12 +126,12 @@ const ChatInterface: React.FC = () => {
         <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end pointer-events-none">
             {/* Chat Panel */}
             <div
-                className={`pointer-events-auto bg-white rounded-2xl shadow-[0_8px_24px_-4px_rgba(15,23,42,0.18),0_24px_48px_-8px_rgba(15,23,42,0.22)] ring-1 ring-black/5 mb-3 overflow-hidden flex flex-col origin-bottom-right transition-all duration-200 ${
+                className={`bg-white rounded-2xl shadow-[0_8px_24px_-4px_rgba(15,23,42,0.18),0_24px_48px_-8px_rgba(15,23,42,0.22)] ring-1 ring-black/5 mb-3 overflow-hidden origin-bottom-right transition-transform duration-200 ${
                     isExpanded
                         ? 'w-[min(760px,calc(100vw-2rem))] h-[calc(100vh-5rem)]'
                         : 'w-[380px] max-w-[calc(100vw-2rem)] h-[620px] max-h-[calc(100vh-5rem)]'
                 } ${
-                    isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'
+                    isOpen ? 'pointer-events-auto flex flex-col scale-100' : 'hidden'
                 }`}
             >
                 {/* Header */}
