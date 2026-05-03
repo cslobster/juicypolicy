@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
+import ChatInterface from './components/ChatInterface';
 import LandingPage from './pages/LandingPage';
 import QuotePage from './pages/QuotePage';
 import LoginPage from './pages/LoginPage';
@@ -28,6 +29,7 @@ function App() {
               <Route path="/about" element={<AboutPage />} />
             </Routes>
           </main>
+          <ChatInterface />
         </div>
       </Router>
     </AuthProvider>

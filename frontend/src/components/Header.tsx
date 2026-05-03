@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Citrus, Home, Plane, HeartPulse, ShieldPlus, Building2, Users, Info, LogOut, Menu, X } from 'lucide-react';
+import { Citrus, Home, ShieldPlus, Users, Info, LogOut, Menu, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
     { path: '/', label: '首页', icon: Home },
-    { path: '/quote/health', label: '健保', icon: ShieldPlus },
-    { path: '/quote/life', label: '人寿', icon: HeartPulse },
-    { path: '/quote/travel', label: '旅行', icon: Plane },
-    { path: '/quote/property', label: '财产', icon: Building2 },
+    { path: '/quote/health', label: '健康保险', icon: ShieldPlus },
     { path: '/agents', label: '经纪网络', icon: Users },
     { path: '/about', label: '关于我们', icon: Info },
 ];

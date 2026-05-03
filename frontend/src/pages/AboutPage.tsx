@@ -11,7 +11,7 @@ const AboutPage = () => {
                 </div>
                 <h1 className="text-4xl font-bold mb-6">关于鲜橙保险</h1>
                 <p className="text-[17px] leading-[1.8] text-[#0d0d0d]">
-                    鲜橙保险是一家总部位于加州的新一代保险科技公司。我们以 AI 为核心驱动力，致力于为在美华人提供更智能、更透明、更高效的保险体验。
+                    鲜橙保险是一家新一代保险科技公司。我们以 AI 为核心驱动力，致力于为在美华人提供更智能、更透明、更高效的保险体验。
                 </p>
             </div>
 
@@ -101,7 +101,7 @@ const AboutPage = () => {
             <div className="max-w-3xl mx-auto px-6 pb-16 text-center">
                 <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4" />
-                    <span>California, United States</span>
+                    <span>美国</span>
                 </div>
             </div>
         </div>

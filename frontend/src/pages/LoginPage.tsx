@@ -78,7 +78,7 @@ const LoginPage = () => {
             <form onSubmit={handleSendCode} className="space-y-4">
               <Input
                 type="email"
-                placeholder="you@example.com"
+                placeholder="请输入邮箱地址"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus
