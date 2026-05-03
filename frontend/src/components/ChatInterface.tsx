@@ -17,7 +17,7 @@ const SUGGESTED_TOPICS = [
 const ChatInterface: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
-        { id: '1', sender: 'bot', text: '👋 您好！我是鲜橙保险顾问。请告诉我您今天想了解的内容，我们工作日 9:00–18:00 也有真人顾问在线。' }
+        { id: '1', sender: 'bot', text: '👋 您好！我是鲜橙保险顾问。请告诉我您今天想了解的内容。' }
     ]);
     const [input, setInput] = useState('');
     const [isBusy, setIsBusy] = useState(false);
