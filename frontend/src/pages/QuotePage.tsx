@@ -2065,7 +2065,7 @@ const QuotePage: React.FC = () => {
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex w-full max-w-[768px] mx-auto flex-col ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
                             <div className={`flex flex-col gap-4 break-words text-[#0d0d0d] text-[15px] leading-[1.7] ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-[#f4f4f4] px-5 py-4 rounded-3xl'}`}>
-                                <div>
+                                <div className={msg.interactiveWidget && msg.sender === 'bot' ? 'hidden lg:block' : ''}>
                                     {msg.text}
                                     {msg.imageUrl && (
                                         <div className="mt-5">
