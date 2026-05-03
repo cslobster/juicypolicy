@@ -22,7 +22,7 @@ const LandingPage: React.FC = () => {
     return (
         <div className="h-full overflow-hidden bg-[#fbfaf6] text-slate-950">
             <section className="relative h-full">
-                <main className="mx-auto flex h-full max-w-6xl flex-col px-5 pb-36 pt-52 sm:px-6 lg:px-8">
+                <main className="mx-auto flex h-full max-w-6xl flex-col px-5 pb-12 pt-6 sm:px-6 lg:px-8 lg:pb-36 lg:pt-52">
                     <section className="grid shrink-0 grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_430px]">
                         <div className="max-w-2xl">
                             <p className="max-w-xl text-lg leading-8 text-slate-600">
