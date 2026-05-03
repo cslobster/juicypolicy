@@ -63,7 +63,7 @@ const LandingPage: React.FC = () => {
                 </main>
 
                 {/* 3-step section, absolutely anchored to overlap the dark bar */}
-                <section className="pointer-events-none absolute inset-x-0 bottom-[80px] z-10 px-5 sm:px-6 lg:px-8">
+                <section className="pointer-events-none absolute inset-x-0 bottom-[160px] z-10 px-5 sm:px-6 lg:px-8">
                     <div className="pointer-events-auto mx-auto max-w-6xl">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
