@@ -262,6 +262,9 @@ const PlanDetailPanel: React.FC<{
 
     const fmtMoney = (v: number | null | undefined) => v != null ? `$${v.toLocaleString()}` : '—';
     const metalDisplay = plan.features?.includes('Expanded Bronze') ? 'Expanded Bronze' : plan.plan_type;
+    const annualPremium = plan.monthly_premium != null
+        ? `$${(plan.monthly_premium * 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : null;
 
     const sections: { id: string; icon: React.ReactNode; title: string; desc?: React.ReactNode; rows?: { label: string; value: string }[] }[] = [
         {
@@ -395,10 +398,28 @@ const PlanDetailPanel: React.FC<{
                                 <span className="text-sm font-semibold text-slate-900">{fmtMoney(plan.max_out_of_pocket_family)}/年</span>
                             </div>
                         )}
-                        <div className="flex items-center justify-between py-2.5 last:pb-0">
+                        <div className="flex items-center justify-between py-2.5">
                             <span className="text-sm text-slate-700">个人最高自付</span>
                             <span className="text-sm text-slate-900">{fmtMoney(plan.max_out_of_pocket)}/年</span>
                         </div>
+                        {plan.primary_care_copay && (
+                            <div className="flex items-center justify-between py-2.5">
+                                <span className="text-sm text-slate-700">门诊（Primary care）</span>
+                                <span className="text-sm text-slate-900 text-right">{plan.primary_care_copay}</span>
+                            </div>
+                        )}
+                        {plan.generic_drugs && (
+                            <div className="flex items-center justify-between py-2.5">
+                                <span className="text-sm text-slate-700">常用处方药（Generic）</span>
+                                <span className="text-sm text-slate-900 text-right">{plan.generic_drugs}</span>
+                            </div>
+                        )}
+                        {annualPremium && (
+                            <div className="flex items-center justify-between py-2.5 last:pb-0">
+                                <span className="text-sm font-semibold text-slate-900 underline decoration-dotted underline-offset-4">预计年度保费</span>
+                                <span className="text-sm font-bold text-slate-900">{annualPremium}/年</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="mx-6 mt-6">
