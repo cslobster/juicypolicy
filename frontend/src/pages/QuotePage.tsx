@@ -1509,7 +1509,7 @@ const QuotePage: React.FC = () => {
 
     const getInitialMessage = (): Message => {
         if (isHealthInsurance) {
-            return { id: '1', sender: 'bot', text: '欢迎使用鲜橙健康保险报价！请填写以下信息，我们将为您实时获取健康保险报价：', interactiveWidget: 'health_form' };
+            return { id: '1', sender: 'bot', text: '', interactiveWidget: 'health_form' };
         }
         if (selectedType === '旅行保险') {
             return { id: '1', sender: 'bot', text: '为了给您提供准确的报价，请问您的国籍和目前的居住国是哪里？', interactiveWidget: 'country_selector' };
