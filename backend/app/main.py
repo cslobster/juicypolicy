@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 
+import re
+
 from . import models
 from .schemas import QuoteRequest, QuoteCreateResponse, QuoteStatusResponse
 from .database import engine, get_db
@@ -16,6 +18,15 @@ from .healthsherpa_service import (
     fetch_health_quotes,
     get_county_fips,
     HealthSherpaError,
+)
+from .agent_auth import (
+    hash_password,
+    verify_password,
+    issue_token,
+    require_agent,
+    get_current_agent,
+    RESERVED_USERNAMES,
+    USERNAME_PATTERN,
 )
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
@@ -403,3 +414,132 @@ def chat_with_quote(request: ChatRequest, db: Session = Depends(get_db)):
             mentioned_plans.append(name)
 
     return {"reply": reply, "mentioned_plans": mentioned_plans}
+
+
+# --- Agent auth + profile ---
+
+
+class AgentRegisterRequest(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: str
+    wechat_id: Optional[str] = None
+    telephone: Optional[str] = None
+
+
+class AgentLoginRequest(BaseModel):
+    username: str  # username OR email
+    password: str
+
+
+class AgentProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    wechat_id: Optional[str] = None
+    telephone: Optional[str] = None
+
+
+def _agent_to_dict(agent: models.Agent) -> dict:
+    return {
+        "id": agent.id,
+        "username": agent.username,
+        "email": agent.email,
+        "full_name": agent.full_name,
+        "wechat_id": agent.wechat_id,
+        "telephone": agent.telephone,
+    }
+
+
+@app.post("/api/agents/register")
+def agent_register(req: AgentRegisterRequest, db: Session = Depends(get_db)):
+    username = req.username.strip().lower()
+    if not re.match(USERNAME_PATTERN, username):
+        raise HTTPException(status_code=400, detail="用户名只能包含字母、数字、下划线，长度3-40")
+    if username in RESERVED_USERNAMES:
+        raise HTTPException(status_code=400, detail="该用户名已被保留")
+    email = req.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="邮箱格式无效")
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="密码至少需要 8 个字符")
+    if not req.full_name.strip():
+        raise HTTPException(status_code=400, detail="姓名不能为空")
+
+    existing = (
+        db.query(models.Agent)
+        .filter((models.Agent.username == username) | (models.Agent.email == email))
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="用户名或邮箱已被注册")
+
+    digest, salt = hash_password(req.password)
+    agent = models.Agent(
+        username=username,
+        email=email,
+        full_name=req.full_name.strip(),
+        hashed_password=digest,
+        salt=salt,
+        wechat_id=(req.wechat_id or "").strip() or None,
+        telephone=(req.telephone or "").strip() or None,
+    )
+    db.add(agent)
+    db.commit()
+    db.refresh(agent)
+
+    return {"agent": _agent_to_dict(agent), "token": issue_token(agent.id)}
+
+
+@app.post("/api/agents/login")
+def agent_login(req: AgentLoginRequest, db: Session = Depends(get_db)):
+    identifier = req.username.strip().lower()
+    agent = (
+        db.query(models.Agent)
+        .filter((models.Agent.username == identifier) | (models.Agent.email == identifier))
+        .first()
+    )
+    if agent is None or not verify_password(req.password, bytes(agent.salt), bytes(agent.hashed_password)):
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    return {"agent": _agent_to_dict(agent), "token": issue_token(agent.id)}
+
+
+@app.get("/api/agents/me")
+def agent_me(agent_id: int = Depends(require_agent), db: Session = Depends(get_db)):
+    agent = get_current_agent(db, agent_id)
+    return _agent_to_dict(agent)
+
+
+@app.patch("/api/agents/me")
+def agent_update_me(
+    req: AgentProfileUpdateRequest,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    agent = get_current_agent(db, agent_id)
+    if req.full_name is not None:
+        if not req.full_name.strip():
+            raise HTTPException(status_code=400, detail="姓名不能为空")
+        agent.full_name = req.full_name.strip()
+    if req.wechat_id is not None:
+        agent.wechat_id = req.wechat_id.strip() or None
+    if req.telephone is not None:
+        agent.telephone = req.telephone.strip() or None
+    db.commit()
+    db.refresh(agent)
+    return _agent_to_dict(agent)
+
+
+@app.get("/api/agents/{username}")
+def agent_public_profile(username: str, db: Session = Depends(get_db)):
+    """Public lookup for the per-agent quote-page header."""
+    uname = username.strip().lower()
+    agent = db.query(models.Agent).filter(models.Agent.username == uname).first()
+    if agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return {
+        "username": agent.username,
+        "full_name": agent.full_name,
+        "email": agent.email,
+        "wechat_id": agent.wechat_id,
+        "telephone": agent.telephone,
+    }

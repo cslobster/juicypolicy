@@ -1760,8 +1760,13 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
     );
 };
 
-const QuotePage: React.FC = () => {
+interface QuotePageProps {
+    forceType?: string;
+}
+
+const QuotePage: React.FC<QuotePageProps> = ({ forceType }) => {
     const { type: typeParam = 'unknown' } = useParams();
+    const effectiveType = forceType || typeParam;
 
     const typeMap: Record<string, string> = {
         'health': '健康保险',
@@ -1772,7 +1777,7 @@ const QuotePage: React.FC = () => {
         'other': '其他保障',
     };
 
-    const selectedType = typeMap[typeParam] || '保险';
+    const selectedType = typeMap[effectiveType] || '保险';
 
     const isLifeInsurance = selectedType === '人寿保险';
     const isHealthInsurance = selectedType === '健康保险';
