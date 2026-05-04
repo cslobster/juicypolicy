@@ -2,7 +2,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ShieldAlert, Star, Plus, Trash, Sparkles, X, FileText, ChevronRight, ChevronDown, Compass, Stethoscope, FlaskConical, Pill, Briefcase, ShieldCheck, DollarSign } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Star, Plus, Trash, Sparkles, FileText } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -221,286 +221,6 @@ const RangeHistogram: React.FC<{
     );
 };
 
-const CARRIER_BAND_COLORS: Record<string, string> = {
-    kaiser: '#0c5560',
-    anthemca: '#1f6dad',
-    bcbs: '#1f6dad',
-    healthnet: '#005f9e',
-    molina: '#1ba398',
-    oscar: '#0d4ea7',
-    cigna: '#0f5c8a',
-    aetna: '#5d2d8d',
-    uhc: '#0040a5',
-    humana: '#69b134',
-};
-
-const carrierBandColor = (carrier: string): string => {
-    const c = carrier.toLowerCase();
-    if (c.includes('kaiser')) return CARRIER_BAND_COLORS.kaiser;
-    if (c.includes('anthem')) return CARRIER_BAND_COLORS.anthemca;
-    if (c.includes('blue shield') || c.includes('blue cross') || c.includes('bcbs')) return CARRIER_BAND_COLORS.bcbs;
-    if (c.includes('health net') || c.includes('healthnet')) return CARRIER_BAND_COLORS.healthnet;
-    if (c.includes('molina')) return CARRIER_BAND_COLORS.molina;
-    if (c.includes('oscar')) return CARRIER_BAND_COLORS.oscar;
-    if (c.includes('cigna')) return CARRIER_BAND_COLORS.cigna;
-    if (c.includes('aetna')) return CARRIER_BAND_COLORS.aetna;
-    if (c.includes('united') || c.includes('uhc')) return CARRIER_BAND_COLORS.uhc;
-    if (c.includes('humana')) return CARRIER_BAND_COLORS.humana;
-    return '#1e293b';
-};
-
-const PlanDetailPanel: React.FC<{
-    plan: HealthPlan;
-    onClose: () => void;
-    onEnroll: (plan: HealthPlan) => void;
-}> = ({ plan, onClose, onEnroll }) => {
-    const [openSection, setOpenSection] = useState<string | null>('common_costs');
-
-    const bandColor = carrierBandColor(plan.carrier);
-    const grossPremium = plan.gross_premium ?? (plan.monthly_premium ? Math.round(plan.monthly_premium * 1.5) : null);
-    const showSubsidy = grossPremium != null && plan.monthly_premium != null && grossPremium > plan.monthly_premium + 0.5;
-
-    const fmtMoney = (v: number | null | undefined) => v != null ? `$${v.toLocaleString()}` : '—';
-    const metalDisplay = plan.features?.includes('Expanded Bronze') ? 'Expanded Bronze' : plan.plan_type;
-    const annualPremium = plan.monthly_premium != null
-        ? `$${(plan.monthly_premium * 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        : null;
-
-    const sections: { id: string; icon: React.ReactNode; title: string; desc?: React.ReactNode; rows?: { label: string; value: string }[] }[] = [
-        {
-            id: 'common_costs',
-            icon: <DollarSign size={18} />,
-            title: '常见费用',
-            rows: [
-                { label: '门诊（Primary care）', value: plan.primary_care_copay || '—' },
-                { label: '专科（Specialist）', value: plan.specialist_copay || '—' },
-                { label: '急诊（Emergency）', value: plan.emergency_room || '—' },
-                { label: '处方药（Generic）', value: plan.generic_drugs || '—' },
-            ],
-        },
-        {
-            id: 'ehb',
-            icon: <ShieldCheck size={18} />,
-            title: '基本健康保障',
-            desc: '所有 ACA 计划均涵盖 10 项基本健康保障（Essential Health Benefits），包括门诊、急诊、住院、孕产、心理健康、处方药、预防保健等。',
-        },
-        {
-            id: 'doctor',
-            icon: <Stethoscope size={18} />,
-            title: '医生就诊',
-            rows: [
-                { label: '门诊（Primary care）', value: plan.primary_care_copay || '—' },
-                { label: '专科（Specialist）', value: plan.specialist_copay || '—' },
-                { label: '紧急护理（Urgent care）', value: plan.urgent_care || plan.emergency_room || '—' },
-            ],
-        },
-        {
-            id: 'treatment',
-            icon: <Briefcase size={18} />,
-            title: '治疗与服务',
-            desc: '具体费用因服务类型而异，详情请查看保单文件（SBC）。',
-        },
-        {
-            id: 'labs',
-            icon: <FlaskConical size={18} />,
-            title: '化验与影像',
-            desc: '具体费用因服务类型而异，详情请查看保单文件（SBC）。',
-        },
-        {
-            id: 'rx',
-            icon: <Pill size={18} />,
-            title: '处方药',
-            rows: [
-                { label: '常用药（Generic）', value: plan.generic_drugs || '—' },
-            ],
-        },
-    ];
-
-    return (
-        <aside
-            className="relative hidden xl:flex w-[440px] shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden"
-            role="complementary"
-            aria-label="保险方案详情"
-        >
-            <div className="relative h-[68px] shrink-0" style={{ background: bandColor }}>
-                <button
-                    onClick={onClose}
-                    aria-label="关闭"
-                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
-                >
-                    <X size={18} />
-                </button>
-            </div>
-
-                <div className="flex-1 overflow-y-auto pb-24">
-                    <div className="px-6 -mt-7 relative">
-                        <div className="w-14 h-14 rounded-full bg-white shadow-md ring-1 ring-black/5 flex items-center justify-center overflow-hidden">
-                            <CarrierLogo carrier={plan.carrier} size={48} />
-                        </div>
-                    </div>
-
-                    <div className="px-6 pt-3">
-                        <p className="text-sm font-medium text-slate-700">{plan.carrier}</p>
-                        <h2 className="mt-1 text-2xl font-bold text-slate-900 leading-tight">{plan.plan_name}</h2>
-                        {plan.plan_id && <p className="mt-1 text-xs text-slate-400 font-mono">{plan.plan_id}</p>}
-
-                        <div className="mt-4 grid grid-cols-3 gap-2">
-                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 flex items-center gap-2">
-                                <Compass size={16} className="text-slate-400 shrink-0" />
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{plan.network_type || '—'}</p>
-                                    <p className="text-[10px] text-slate-500 leading-tight">网络</p>
-                                </div>
-                            </div>
-                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PLAN_TYPE_COLORS[plan.plan_type] || '#94a3b8' }} />
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-slate-900 truncate">{metalDisplay}</p>
-                                    <p className="text-[10px] text-slate-500 leading-tight">等级</p>
-                                </div>
-                            </div>
-                            <div className={`rounded-xl border px-3 py-2.5 flex items-center gap-2 ${plan.hsa_eligible ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/60'}`}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0">
-                                    <rect x="2" y="6" width="20" height="14" rx="2" />
-                                    <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h12" />
-                                </svg>
-                                <div className="min-w-0">
-                                    <p className={`text-sm font-semibold truncate ${plan.hsa_eligible ? 'text-slate-900' : 'text-slate-400'}`}>HSA</p>
-                                    <p className="text-[10px] text-slate-500 leading-tight">{plan.hsa_eligible ? '可用' : '不适用'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mt-6 mx-6 rounded-2xl bg-slate-50 px-5 py-4 divide-y divide-slate-200/70">
-                        <div className="flex items-center justify-between py-2.5 first:pt-0">
-                            <span className="text-sm font-semibold text-slate-900 underline decoration-dotted underline-offset-4">月保费</span>
-                            <div className="text-right">
-                                {showSubsidy && (
-                                    <span className="text-sm text-slate-400 line-through mr-2">${grossPremium}</span>
-                                )}
-                                <span className="text-sm font-bold text-slate-900">${plan.monthly_premium?.toFixed(0) ?? '—'}/月</span>
-                            </div>
-                        </div>
-                        {plan.deductible_family != null && (
-                            <div className="flex items-center justify-between py-2.5">
-                                <span className="text-sm font-semibold text-slate-900 underline decoration-dotted underline-offset-4">家庭免赔额（医疗）</span>
-                                <span className="text-sm font-semibold text-slate-900">{fmtMoney(plan.deductible_family)}/年</span>
-                            </div>
-                        )}
-                        <div className="flex items-center justify-between py-2.5">
-                            <span className="text-sm text-slate-700">个人免赔额（医疗）</span>
-                            <span className="text-sm text-slate-900">{fmtMoney(plan.deductible)}/年</span>
-                        </div>
-                        {plan.max_out_of_pocket_family != null && (
-                            <div className="flex items-center justify-between py-2.5">
-                                <span className="text-sm font-semibold text-slate-900 underline decoration-dotted underline-offset-4">家庭最高自付</span>
-                                <span className="text-sm font-semibold text-slate-900">{fmtMoney(plan.max_out_of_pocket_family)}/年</span>
-                            </div>
-                        )}
-                        <div className="flex items-center justify-between py-2.5">
-                            <span className="text-sm text-slate-700">个人最高自付</span>
-                            <span className="text-sm text-slate-900">{fmtMoney(plan.max_out_of_pocket)}/年</span>
-                        </div>
-                        {plan.primary_care_copay && (
-                            <div className="flex items-center justify-between py-2.5">
-                                <span className="text-sm text-slate-700">门诊（Primary care）</span>
-                                <span className="text-sm text-slate-900 text-right">{plan.primary_care_copay}</span>
-                            </div>
-                        )}
-                        {plan.generic_drugs && (
-                            <div className="flex items-center justify-between py-2.5">
-                                <span className="text-sm text-slate-700">常用处方药（Generic）</span>
-                                <span className="text-sm text-slate-900 text-right">{plan.generic_drugs}</span>
-                            </div>
-                        )}
-                        {annualPremium && (
-                            <div className="flex items-center justify-between py-2.5 last:pb-0">
-                                <span className="text-sm font-semibold text-slate-900 underline decoration-dotted underline-offset-4">预计年度保费</span>
-                                <span className="text-sm font-bold text-slate-900">{annualPremium}/年</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="mx-6 mt-6">
-                        <span className="inline-block px-3.5 py-1.5 bg-slate-200 rounded-full text-xs font-medium text-slate-700">免赔后</span>
-                    </div>
-
-                    <div className="mx-6 mt-3 divide-y divide-slate-200/70 border-y border-slate-200/70">
-                        {sections.map(s => {
-                            const isOpen = openSection === s.id;
-                            return (
-                                <div key={s.id}>
-                                    <button
-                                        onClick={() => setOpenSection(isOpen ? null : s.id)}
-                                        className="w-full flex items-center gap-3 px-1 py-4 text-left hover:bg-slate-50/60 transition-colors"
-                                        aria-expanded={isOpen}
-                                    >
-                                        <span className="text-slate-500 shrink-0">{s.icon}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-base font-semibold text-slate-900">{s.title}</p>
-                                            {!isOpen && s.desc && (
-                                                <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{s.desc}</p>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 shrink-0">
-                                            {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                        </span>
-                                    </button>
-                                    {isOpen && (
-                                        <div className="px-1 pb-4 -mt-1 ml-8 text-sm text-slate-700 space-y-2">
-                                            {s.desc && <p className="text-slate-600 leading-relaxed">{s.desc}</p>}
-                                            {s.rows && s.rows.map(r => (
-                                                <div key={r.label} className="flex justify-between gap-4">
-                                                    <span className="text-slate-600">{r.label}</span>
-                                                    <span className="font-medium text-slate-900 text-right">{r.value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {plan.sbc_url && (
-                        <a
-                            href={plan.sbc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mx-6 mt-4 inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900 transition-colors"
-                        >
-                            <FileText size={14} />
-                            查看保单文件 (SBC)
-                        </a>
-                    )}
-                </div>
-
-                <div className="absolute bottom-4 right-4 left-4 sm:left-auto sm:right-6">
-                    <Button
-                        onClick={() => onEnroll(plan)}
-                        size="lg"
-                        className="w-full sm:w-auto rounded-full bg-slate-900 px-6 text-white shadow-lg hover:bg-slate-800"
-                    >
-                        投保此计划
-                    </Button>
-                </div>
-
-                {/* PDF link in top-right corner of header for screenshot parity */}
-                {plan.sbc_url && (
-                    <a
-                        href={plan.sbc_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute top-[78px] right-6 inline-flex items-center gap-1 text-xs text-slate-600 hover:text-slate-900"
-                    >
-                        <FileText size={13} />
-                        PDF
-                    </a>
-                )}
-        </aside>
-    );
-};
 
 const HealthQuoteResults: React.FC<{
     plans: HealthPlan[];
@@ -816,6 +536,18 @@ const HealthQuoteResults: React.FC<{
                                                     <h3 className="text-base font-semibold text-slate-900 leading-snug">{plan.plan_name}</h3>
                                                     <span className="text-xs text-slate-500 truncate">{plan.carrier}</span>
                                                 </div>
+                                                {plan.sbc_url && (
+                                                    <a
+                                                        href={plan.sbc_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 transition-colors"
+                                                    >
+                                                        <FileText size={12} />
+                                                        保单文件 PDF
+                                                    </a>
+                                                )}
                                                 <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                                     {plan.plan_type && (
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-900 text-[11px] rounded-full">
@@ -909,14 +641,6 @@ const HealthQuoteResults: React.FC<{
                     </div>
                 </div>
             </main>
-
-            {selectedPlan && onEnroll && (
-                <PlanDetailPanel
-                    plan={selectedPlan}
-                    onClose={() => onSelectPlan(null)}
-                    onEnroll={onEnroll}
-                />
-            )}
         </div>
     );
 };
@@ -1390,7 +1114,6 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
     const [sex, setSex] = useState('');
     const [income, setIncome] = useState('');
     const [additionalMembers, setAdditionalMembers] = useState<HouseholdMember[]>([]);
-    const [noTobacco, setNoTobacco] = useState(true);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const addMember = () => setAdditionalMembers([...additionalMembers, { age: '', sex: '' }]);
@@ -1426,7 +1149,7 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
             income: income.replace(/[,$]/g, ''),
             household_size: 1 + additionalMembers.length,
             ages_list: otherAges.length > 0 ? otherAges : [],
-            uses_tobacco: !noTobacco,
+            uses_tobacco: false,
         });
     };
 
@@ -1530,19 +1253,6 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
                             className={`${fieldClass} w-full max-w-[450px] ${errors.income ? 'border-red-500' : ''}`}
                         />
                         {errors.income && <p className={errClass}>{errors.income}</p>}
-                    </section>
-
-                    <section className="mt-8">
-                        <label className="inline-flex cursor-pointer select-none items-center gap-3">
-                            <input
-                                type="checkbox"
-                                checked={noTobacco}
-                                onChange={e => setNoTobacco(e.target.checked)}
-                                className="h-5 w-5 cursor-pointer rounded border-2 border-[#161616] accent-[#111115]"
-                            />
-                            <span className="text-sm font-medium text-[#111115]">不吸烟</span>
-                            <span className="text-xs text-[#858585]">（烟草使用者保费可能更高）</span>
-                        </label>
                     </section>
 
                     <p className="mt-8 text-xs leading-5 text-slate-400">
@@ -2432,8 +2142,7 @@ const QuotePage: React.FC = () => {
                                 {/* === HEALTH QUOTE FORM WIDGET === */}
                                 {msg.interactiveWidget === 'health_form' && (
                                     <HealthQuoteForm onSubmit={(data) => {
-                                        const tobacco = data.uses_tobacco ? '吸烟' : '不吸烟';
-                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}, ${tobacco}`;
+                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}`;
                                         handleSend(summary);
                                         triggerHealthQuote(data);
                                     }} />
