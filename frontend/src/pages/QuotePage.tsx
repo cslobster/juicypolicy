@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { registerChatHandler, pushBotMessage } from '../lib/chatBus';
+import { registerChatHandler } from '../lib/chatBus';
 
 interface QuotePlan {
     id: string;
@@ -314,26 +314,20 @@ const PlanDetailPanel: React.FC<{
     ];
 
     return (
-        <>
-            <div
-                className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm animate-in fade-in duration-200"
-                onClick={onClose}
-                aria-hidden="true"
-            />
-            <aside
-                className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[440px] bg-white shadow-[0_-12px_60px_-12px_rgba(15,23,42,0.4)] flex flex-col animate-in slide-in-from-right duration-300"
-                role="dialog"
-                aria-modal="true"
-            >
-                <div className="relative h-[68px] shrink-0" style={{ background: bandColor }}>
-                    <button
-                        onClick={onClose}
-                        aria-label="关闭"
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
+        <aside
+            className="relative hidden xl:flex w-[440px] shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden"
+            role="complementary"
+            aria-label="保险方案详情"
+        >
+            <div className="relative h-[68px] shrink-0" style={{ background: bandColor }}>
+                <button
+                    onClick={onClose}
+                    aria-label="关闭"
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+                >
+                    <X size={18} />
+                </button>
+            </div>
 
                 <div className="flex-1 overflow-y-auto pb-24">
                     <div className="px-6 -mt-7 relative">
@@ -483,8 +477,7 @@ const PlanDetailPanel: React.FC<{
                         PDF
                     </a>
                 )}
-            </aside>
-        </>
+        </aside>
     );
 };
 
@@ -1794,18 +1787,7 @@ const QuotePage: React.FC = () => {
     const [highlightedPlans, setHighlightedPlans] = useState<string[]>([]);
     const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
 
-    const lastPromptedPlanKeyRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (!selectedViewPlan || !showHealthResults || !activeQuoteId) return;
-        const p = selectedViewPlan;
-        const key = `${p.plan_name}|${p.carrier}`;
-        if (lastPromptedPlanKeyRef.current === key) return;
-        lastPromptedPlanKeyRef.current = key;
-        pushBotMessage({
-            text: `您选择了【${p.plan_name}】（${p.carrier}）。想了解什么？`,
-            options: ['这个保险的详细信息', '这个保险适合我吗'],
-        });
-    }, [selectedViewPlan]);
+    // (Plan selection used to push a chat-bus prompt; replaced by the inline detail panel.)
 
     // Load previous quote from localStorage or show form
     useEffect(() => {
