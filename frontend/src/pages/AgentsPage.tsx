@@ -140,7 +140,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
     const [error, setError] = useState('');
     const [copied, setCopied] = useState(false);
 
-    const url = `${window.location.origin}/${agent.username}`;
+    const url = `${window.location.origin}/agent/${agent.username}`;
 
     const save = async () => {
         setError('');
@@ -201,7 +201,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
                         <p className="text-xs text-slate-500 mt-2">
                             将此链接发送给客户，他们将看到您的联系信息并可直接获取报价。
                         </p>
-                        <a href={`/${agent.username}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-orange-600 hover:underline">
+                        <a href={`/agent/${agent.username}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-orange-600 hover:underline">
                             预览站点 →
                         </a>
                     </CardContent>

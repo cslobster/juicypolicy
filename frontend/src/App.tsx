@@ -35,8 +35,8 @@ function App() {
             <Route path="/login" element={<StandardLayout><LoginPage /></StandardLayout>} />
             <Route path="/agents" element={<StandardLayout><AgentsPage /></StandardLayout>} />
             <Route path="/about" element={<StandardLayout><AboutPage /></StandardLayout>} />
-            {/* Per-agent quote site — must come last so reserved routes win */}
-            <Route path="/:agent" element={<AgentQuotePage />} />
+            {/* Per-agent quote site (under /agent so it can't collide with named routes) */}
+            <Route path="/agent/:agent" element={<AgentQuotePage />} />
           </Routes>
         </Router>
       </AgentAuthProvider>
