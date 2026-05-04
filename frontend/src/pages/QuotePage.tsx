@@ -326,7 +326,7 @@ const PlanDetailPanel: React.FC<{
 
     return (
         <aside
-            className="relative hidden xl:flex w-[440px] shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden"
+            className="relative hidden lg:flex w-[400px] xl:w-[440px] shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden"
             role="complementary"
             aria-label="保险方案详情"
         >
@@ -712,7 +712,7 @@ const HealthQuoteResults: React.FC<{
 
             {/* Main */}
             <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 sm:py-7 lg:px-10">
-                <div className="max-w-[600px] mx-auto">
+                <div className="max-w-[560px] mx-auto">
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-slate-900">保险方案</h1>
