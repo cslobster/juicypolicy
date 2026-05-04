@@ -2,7 +2,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, ShieldAlert, Star, Plus, Trash } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, Star, Plus, Trash, Sparkles } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -1498,6 +1498,7 @@ const QuotePage: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([getInitialMessage()]);
 
     const [isBotTyping, setIsBotTyping] = useState(false);
+    const [isLoadingQuote, setIsLoadingQuote] = useState(false);
     const [chatStage, setChatStage] = useState(1);
     const bottomRef = useRef<HTMLDivElement>(null);
     const [travelData, setTravelData] = useState<any>(null);
@@ -1763,6 +1764,7 @@ const QuotePage: React.FC = () => {
     const triggerHealthQuote = async (data: any) => {
         setLastQuoteData(data);
         setIsBotTyping(true);
+        setIsLoadingQuote(true);
 
         const placeholderId = `quoting_${Date.now()}`;
         setMessages(prev => [...prev, {
@@ -1797,6 +1799,7 @@ const QuotePage: React.FC = () => {
                 localStorage.setItem('jp_health_quote_id', JSON.stringify({ id: quoteData.quote_id, expires: Date.now() + 24 * 60 * 60 * 1000 }));
 
                 setIsBotTyping(false);
+                setIsLoadingQuote(false);
                 setMessages(prev => [
                     ...prev.filter(m => m.id !== placeholderId),
                     {
@@ -1810,6 +1813,7 @@ const QuotePage: React.FC = () => {
             }
 
             setIsBotTyping(false);
+            setIsLoadingQuote(false);
             setMessages(prev => [
                 ...prev.filter(m => m.id !== placeholderId),
                 {
@@ -1821,6 +1825,7 @@ const QuotePage: React.FC = () => {
             ]);
         } catch (err) {
             setIsBotTyping(false);
+            setIsLoadingQuote(false);
             setMessages(prev => [
                 ...prev.filter(m => m.id !== placeholderId),
                 {
@@ -2017,7 +2022,25 @@ const QuotePage: React.FC = () => {
         <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-full w-full">
 
             <div className="flex-1 flex flex-col bg-white overflow-hidden">
-                {showHealthResults && healthPlans.length > 0 ? (
+                {isLoadingQuote ? (
+                    <div className="flex-1 overflow-hidden bg-gradient-to-b from-orange-50/50 via-orange-50/20 to-white flex items-center justify-center px-5 py-10">
+                        <div className="relative w-full max-w-[480px]">
+                            <div className="absolute inset-0 -z-10 rounded-[32px] bg-orange-50/60 blur-2xl scale-[1.04]" />
+                            <div className="rounded-[28px] bg-white shadow-[0_24px_60px_-30px_rgba(15,23,42,0.25)] ring-1 ring-orange-100/80 px-8 py-12 text-center">
+                                <div className="mx-auto mb-6 inline-flex h-12 w-12 items-center justify-center">
+                                    <Sparkles size={40} className="text-orange-500" strokeWidth={1.6} />
+                                </div>
+                                <h2 className="text-xl font-bold text-slate-900">正在加载保险方案…</h2>
+                                <div className="mx-auto my-6 h-1 w-[260px] max-w-full overflow-hidden rounded-full bg-orange-100">
+                                    <div className="h-full w-1/3 rounded-full bg-orange-500 quote-loader-bar" />
+                                </div>
+                                <p className="text-sm leading-6 text-slate-500">
+                                    正在根据您提供的信息<br />为您匹配最合适的保险方案
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ) : showHealthResults && healthPlans.length > 0 ? (
                     <HealthQuoteResults
                         plans={healthPlans}
                         highlightedPlans={highlightedPlans}
