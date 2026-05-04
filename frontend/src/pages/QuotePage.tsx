@@ -838,26 +838,45 @@ const HealthQuoteResults: React.FC<{
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 gap-3">
-                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm min-w-0">
-                                                <p className="text-slate-700">
-                                                    <span className="font-bold text-slate-900">${plan.deductible?.toLocaleString() ?? '-'}</span>
-                                                    <span className="text-slate-500"> 总免赔额</span>
-                                                </p>
+                                        <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-x-6 gap-y-3 items-start">
+                                            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                                                 {formatCopay(plan.primary_care_copay) && (
-                                                    <p className="text-slate-700">
-                                                        <span className="font-medium text-slate-900">{formatCopay(plan.primary_care_copay)}</span>
-                                                        <span className="text-slate-500"> 门诊费</span>
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">门诊（Primary care）</p>
+                                                        <p className="font-medium text-slate-900 mt-0.5">{formatCopay(plan.primary_care_copay)}</p>
+                                                    </div>
+                                                )}
+                                                {formatCopay(plan.generic_drugs) && (
+                                                    <div>
+                                                        <p className="text-xs text-slate-500">常用处方药（Generic）</p>
+                                                        <p className="font-medium text-slate-900 mt-0.5">{formatCopay(plan.generic_drugs)}</p>
+                                                    </div>
+                                                )}
+                                                <div className="col-span-2">
+                                                    <p className="text-xs text-slate-500">年度免赔额</p>
+                                                    <p className="font-medium text-slate-900 mt-0.5">
+                                                        ${plan.deductible?.toLocaleString() ?? '-'}<span className="text-slate-500 font-normal"> /年（医疗）</span>
                                                     </p>
-                                                )}
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <p className="text-xs text-slate-500">预计年度保费</p>
+                                                    <p className="font-medium text-slate-900 mt-0.5">
+                                                        {plan.monthly_premium != null
+                                                            ? `$${(plan.monthly_premium * 12).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                            : '—'}
+                                                        <span className="text-slate-500 font-normal"> /年</span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <p className="text-sm shrink-0">
+                                            <div className="text-right shrink-0 sm:pl-4 sm:border-l sm:border-slate-100">
                                                 {originalPrice && (
-                                                    <span className="text-slate-400 line-through mr-1.5">${originalPrice}</span>
+                                                    <p className="text-xs text-slate-400 line-through">${originalPrice}/月</p>
                                                 )}
-                                                <span className="font-bold text-slate-900">${plan.monthly_premium?.toFixed(0) ?? '-'}</span>
-                                                <span className="text-slate-700">/月</span>
-                                            </p>
+                                                <p className="text-2xl font-bold text-slate-900 leading-tight">
+                                                    ${plan.monthly_premium?.toFixed(0) ?? '-'}
+                                                </p>
+                                                <p className="text-xs text-slate-500">每月</p>
+                                            </div>
                                         </div>
                                     </div>
 
