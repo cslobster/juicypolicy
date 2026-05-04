@@ -12,6 +12,11 @@ from . import models
 from .schemas import QuoteRequest, QuoteCreateResponse, QuoteStatusResponse
 from .database import engine, get_db
 from .quote_service import convert_quote_text_to_json
+from .healthsherpa_service import (
+    fetch_health_quotes,
+    get_county_fips,
+    HealthSherpaError,
+)
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
@@ -100,6 +105,96 @@ def get_quote(quote_id: int, db: Session = Depends(get_db)):
     if quote is None:
         raise HTTPException(status_code=404, detail="Quote not found")
     return quote
+
+
+# --- HealthSherpa-backed synchronous quote ---
+
+class HealthSherpaQuoteRequest(BaseModel):
+    name: Optional[str] = "Primary"
+    sex: Optional[str] = None  # "Male" | "Female"
+    age: int
+    zip: str
+    income: Optional[str] = None
+    household_size: int = 1
+    ages_list: Optional[List[int]] = None
+    uses_tobacco: bool = False
+    plan_year: int = 2026
+
+
+@app.post("/api/quote_v2", response_model=QuoteStatusResponse)
+def create_quote_v2(req: HealthSherpaQuoteRequest, db: Session = Depends(get_db)):
+    """Create + fulfill a health quote synchronously via HealthSherpa One API."""
+    customer_data = req.model_dump()
+    db_quote = models.Quote(
+        customer_data=customer_data,
+        quote_status="scraping",
+        status_message="Calling HealthSherpa...",
+        has_quote=False,
+    )
+    db.add(db_quote)
+    db.commit()
+    db.refresh(db_quote)
+
+    try:
+        county = get_county_fips(req.zip)
+        if not county:
+            raise HealthSherpaError(f"No county found for ZIP {req.zip}")
+
+        income_val: Optional[float] = None
+        if req.income:
+            cleaned = req.income.replace("$", "").replace(",", "").strip()
+            if cleaned:
+                try:
+                    income_val = float(cleaned)
+                except ValueError:
+                    income_val = None
+
+        gender = None
+        if req.sex:
+            s = req.sex.lower()
+            if s.startswith("m"):
+                gender = "male"
+            elif s.startswith("f"):
+                gender = "female"
+
+        result = fetch_health_quotes(
+            zip_code=req.zip,
+            fips_code=county["fips_code"],
+            state=county.get("state"),
+            age=req.age,
+            gender=gender,
+            annual_income=income_val,
+            household_size=req.household_size,
+            additional_ages=req.ages_list or [],
+            uses_tobacco=req.uses_tobacco,
+            plan_year=req.plan_year,
+        )
+
+        db_quote.quote_data = {
+            "plans": result["plans"],
+            "county": county,
+            "source": "healthsherpa",
+            "raw_count": result["raw_count"],
+        }
+        db_quote.quote_status = "quoted"
+        db_quote.has_quote = True
+        db_quote.status_message = f"Done! Found {len(result['plans'])} plans."
+    except HealthSherpaError as e:
+        db_quote.quote_data = {"status": "error", "error": str(e)}
+        db_quote.quote_status = "error"
+        db_quote.has_quote = False
+        db_quote.status_message = f"HealthSherpa error: {str(e)[:120]}"
+        print(f"[Quote {db_quote.quote_id}] HealthSherpa error: {e}")
+    except Exception as e:
+        db_quote.quote_data = {"status": "error", "error": str(e)}
+        db_quote.quote_status = "error"
+        db_quote.has_quote = False
+        db_quote.status_message = f"Error: {str(e)[:120]}"
+        print(f"[Quote {db_quote.quote_id}] Unexpected error: {e}")
+
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
 
 
 # --- Worker endpoints ---

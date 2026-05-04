@@ -1075,6 +1075,7 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
     const [sex, setSex] = useState('');
     const [income, setIncome] = useState('');
     const [additionalMembers, setAdditionalMembers] = useState<HouseholdMember[]>([]);
+    const [noTobacco, setNoTobacco] = useState(true);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const addMember = () => setAdditionalMembers([...additionalMembers, { age: '', sex: '' }]);
@@ -1110,6 +1111,7 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
             income: income.replace(/[,$]/g, ''),
             household_size: 1 + additionalMembers.length,
             ages_list: otherAges.length > 0 ? otherAges : [],
+            uses_tobacco: !noTobacco,
         });
     };
 
@@ -1213,6 +1215,19 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
                             className={`${fieldClass} w-full max-w-[450px] ${errors.income ? 'border-red-500' : ''}`}
                         />
                         {errors.income && <p className={errClass}>{errors.income}</p>}
+                    </section>
+
+                    <section className="mt-8">
+                        <label className="inline-flex cursor-pointer select-none items-center gap-3">
+                            <input
+                                type="checkbox"
+                                checked={noTobacco}
+                                onChange={e => setNoTobacco(e.target.checked)}
+                                className="h-5 w-5 cursor-pointer rounded border-2 border-[#161616] accent-[#111115]"
+                            />
+                            <span className="text-sm font-medium text-[#111115]">不吸烟</span>
+                            <span className="text-xs text-[#858585]">（烟草使用者保费可能更高）</span>
+                        </label>
                     </section>
 
                     <p className="mt-8 text-xs leading-5 text-slate-400">
@@ -1749,9 +1764,15 @@ const QuotePage: React.FC = () => {
         setLastQuoteData(data);
         setIsBotTyping(true);
 
+        const placeholderId = `quoting_${Date.now()}`;
+        setMessages(prev => [...prev, {
+            id: placeholderId,
+            sender: 'bot' as const,
+            text: '正在实时获取报价数据，请稍候...',
+        }]);
+
         try {
-            // Step 1: Create quote in DB
-            const createRes = await fetch(`${API_BASE}/api/quote`, {
+            const res = await fetch(`${API_BASE}/api/quote_v2`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1762,99 +1783,53 @@ const QuotePage: React.FC = () => {
                     income: data.income,
                     household_size: data.household_size,
                     ages_list: data.ages_list || [],
+                    uses_tobacco: !!data.uses_tobacco,
                 }),
             });
 
-            if (!createRes.ok) throw new Error('创建报价失败');
-            const { quote_id } = await createRes.json();
+            if (!res.ok) throw new Error(`报价请求失败 (${res.status})`);
+            const quoteData = await res.json();
 
-            // Step 2: Show waiting message
-            setMessages(prev => [...prev, {
-                id: `polling_${quote_id}`,
-                sender: 'bot' as const,
-                text: `报价请求 #${quote_id} 已创建，正在实时获取报价数据，请稍候...（系统处理中）`,
-            }]);
+            if (quoteData.quote_status === 'quoted' && quoteData.has_quote) {
+                const rawPlans: HealthPlan[] = quoteData.quote_data?.plans || [];
+                setHealthPlans(rawPlans);
+                setActiveQuoteId(quoteData.quote_id);
+                localStorage.setItem('jp_health_quote_id', JSON.stringify({ id: quoteData.quote_id, expires: Date.now() + 24 * 60 * 60 * 1000 }));
 
-            // Step 3: Poll for result
-            const pollInterval = 5000;
-            const maxPolls = 120; // 10 minutes max
-            let polls = 0;
+                setIsBotTyping(false);
+                setMessages(prev => [
+                    ...prev.filter(m => m.id !== placeholderId),
+                    {
+                        id: Date.now().toString(),
+                        sender: 'bot' as const,
+                        text: `已找到 ${rawPlans.length} 个健康保险方案。`,
+                    },
+                ]);
+                setShowHealthResults(true);
+                return;
+            }
 
-            const poll = async () => {
-                polls++;
-                const statusRes = await fetch(`${API_BASE}/api/quote/${quote_id}`);
-                if (!statusRes.ok) throw new Error('检查报价状态失败');
-                const quoteData = await statusRes.json();
-
-                if (quoteData.quote_status === 'quoted' && quoteData.has_quote) {
-                    const rawPlans: HealthPlan[] = quoteData.quote_data?.plans || [];
-                    setHealthPlans(rawPlans);
-                    setActiveQuoteId(quoteData.quote_id);
-                    localStorage.setItem('jp_health_quote_id', JSON.stringify({ id: quoteData.quote_id, expires: Date.now() + 24 * 60 * 60 * 1000 }));
-
-                    setIsBotTyping(false);
-                    setMessages(prev => {
-                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
-                        return [...filtered, {
-                            id: Date.now().toString(),
-                            sender: 'bot' as const,
-                            text: `抓取完成！找到 ${rawPlans.length} 个健康保险方案。`,
-                        }];
-                    });
-                    setShowHealthResults(true);
-                    return;
-                }
-
-                if (quoteData.quote_status === 'error') {
-                    setIsBotTyping(false);
-                    setMessages(prev => {
-                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
-                        return [...filtered, {
-                            id: Date.now().toString(),
-                            sender: 'bot' as const,
-                            text: `报价抓取失败: ${quoteData.quote_data?.error || '未知错误'}`,
-                            options: ['重试', '重新报价'],
-                        }];
-                    });
-                    return;
-                }
-
-                if (polls >= maxPolls) {
-                    setIsBotTyping(false);
-                    setMessages(prev => {
-                        const filtered = prev.filter(m => m.id !== `polling_${quote_id}`);
-                        return [...filtered, {
-                            id: Date.now().toString(),
-                            sender: 'bot' as const,
-                            text: '报价抓取超时，请稍后刷新页面查看结果。',
-                        }];
-                    });
-                    return;
-                }
-
-                // Update polling message with live status from backend
-                const statusMsg = quoteData.status_message || '处理中...';
-                const statusIcon = quoteData.quote_status === 'scraping' ? '🔍' :
-                                   quoteData.quote_status === 'converting' ? '🤖' : '⏳';
-                setMessages(prev =>
-                    prev.map(m =>
-                        m.id === `polling_${quote_id}`
-                            ? { ...m, text: `${statusIcon} 报价 #${quote_id} | ${statusMsg}\n⏱ 已等待 ${polls * 5} 秒` }
-                            : m
-                    )
-                );
-
-                setTimeout(poll, pollInterval);
-            };
-
-            setTimeout(poll, pollInterval);
+            setIsBotTyping(false);
+            setMessages(prev => [
+                ...prev.filter(m => m.id !== placeholderId),
+                {
+                    id: Date.now().toString(),
+                    sender: 'bot' as const,
+                    text: `报价获取失败: ${quoteData.quote_data?.error || quoteData.status_message || '未知错误'}`,
+                    options: ['重试', '重新报价'],
+                },
+            ]);
         } catch (err) {
             setIsBotTyping(false);
-            setMessages(prev => [...prev, {
-                id: Date.now().toString(),
-                sender: 'bot' as const,
-                text: `抱歉，报价创建失败，请稍后重试。错误: ${err}`,
-            }]);
+            setMessages(prev => [
+                ...prev.filter(m => m.id !== placeholderId),
+                {
+                    id: Date.now().toString(),
+                    sender: 'bot' as const,
+                    text: `抱歉，报价请求失败，请稍后重试。错误: ${err}`,
+                    options: ['重试', '重新报价'],
+                },
+            ]);
         }
     };
 
@@ -2130,7 +2105,8 @@ const QuotePage: React.FC = () => {
                                 {/* === HEALTH QUOTE FORM WIDGET === */}
                                 {msg.interactiveWidget === 'health_form' && (
                                     <HealthQuoteForm onSubmit={(data) => {
-                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}`;
+                                        const tobacco = data.uses_tobacco ? '吸烟' : '不吸烟';
+                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}, ${tobacco}`;
                                         handleSend(summary);
                                         triggerHealthQuote(data);
                                     }} />
