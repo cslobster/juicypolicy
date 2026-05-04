@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Phone, Mail, MessageSquare, Citrus } from 'lucide-react';
+import { Phone, Mail, Citrus } from 'lucide-react';
 import QuotePage from './QuotePage';
 import ChatInterface from '../components/ChatInterface';
 
@@ -73,49 +73,39 @@ const AgentQuotePage = () => {
 
 const AgentHeader = ({ agent }: { agent: AgentPublic }) => {
     return (
-        <header className="sticky top-0 z-30 border-b border-orange-100 bg-orange-50/95 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-orange-400 bg-orange-300/95 backdrop-blur-xl">
             <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3 min-w-0">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
-                        <Citrus size={18} className="text-orange-500" />
+                        <Citrus size={18} className="text-orange-600" />
                     </div>
                     <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{agent.full_name}</p>
-                        <p className="text-[11px] text-slate-500 truncate">您的专属保险顾问</p>
+                        <p className="text-[11px] text-slate-700 truncate">您的专属保险顾问</p>
                     </div>
                 </div>
-                <div className="hidden md:flex items-center gap-4 text-xs text-slate-700">
+                <div className="hidden md:flex items-center gap-4 text-xs text-slate-800">
                     {agent.telephone && (
                         <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1.5 hover:text-slate-900">
-                            <Phone size={13} className="text-orange-500" /> {agent.telephone}
+                            <Phone size={13} className="text-orange-700" /> {agent.telephone}
                         </a>
-                    )}
-                    {agent.wechat_id && (
-                        <span className="inline-flex items-center gap-1.5">
-                            <MessageSquare size={13} className="text-orange-500" /> 微信: {agent.wechat_id}
-                        </span>
                     )}
                     {agent.email && (
                         <a href={`mailto:${agent.email}`} className="inline-flex items-center gap-1.5 hover:text-slate-900">
-                            <Mail size={13} className="text-orange-500" /> {agent.email}
+                            <Mail size={13} className="text-orange-700" /> {agent.email}
                         </a>
                     )}
                 </div>
             </div>
-            <div className="md:hidden border-t border-orange-100/70 px-4 pb-2 pt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-700">
+            <div className="md:hidden border-t border-orange-400/70 px-4 pb-2 pt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-800">
                 {agent.telephone && (
                     <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1">
-                        <Phone size={11} className="text-orange-500" /> {agent.telephone}
+                        <Phone size={11} className="text-orange-700" /> {agent.telephone}
                     </a>
-                )}
-                {agent.wechat_id && (
-                    <span className="inline-flex items-center gap-1">
-                        <MessageSquare size={11} className="text-orange-500" /> {agent.wechat_id}
-                    </span>
                 )}
                 {agent.email && (
                     <a href={`mailto:${agent.email}`} className="inline-flex items-center gap-1 truncate">
-                        <Mail size={11} className="text-orange-500" /> {agent.email}
+                        <Mail size={11} className="text-orange-700" /> {agent.email}
                     </a>
                 )}
             </div>
