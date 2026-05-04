@@ -2064,10 +2064,8 @@ const QuotePage: React.FC = () => {
                         onEnroll={(p) => {
                             setShowHealthResults(false);
                             setChatStage(10);
-                            const planSummary = `${p.plan_name} (${p.carrier}) - ${p.plan_type} ${p.network_type}\n月保费: $${p.monthly_premium?.toFixed(2)} | 免赔额: $${p.deductible?.toLocaleString()} | 最高自付: $${p.max_out_of_pocket?.toLocaleString()}`;
                             setMessages([
-                                { id: 'enroll-1', sender: 'user', text: `我想投保【${p.plan_name}】` },
-                                { id: 'enroll-2', sender: 'bot', text: `您选择了以下计划：\n\n${planSummary}\n\n为了完成投保，请提供以下信息：`, interactiveWidget: 'health_enroll' },
+                                { id: 'enroll-1', sender: 'bot', text: '', interactiveWidget: 'health_enroll' },
                             ]);
                             setEnrollingPlan(p);
                         }}
