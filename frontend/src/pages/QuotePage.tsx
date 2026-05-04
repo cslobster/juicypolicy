@@ -325,11 +325,24 @@ const PlanDetailPanel: React.FC<{
     ];
 
     return (
-        <aside
-            className="relative hidden lg:flex w-[400px] xl:w-[440px] shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden"
-            role="complementary"
-            aria-label="保险方案详情"
-        >
+        <>
+            {/* Popup-mode backdrop (mobile/tablet only) */}
+            <div
+                className="lg:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+            <aside
+                role="dialog"
+                aria-modal="true"
+                aria-label="保险方案详情"
+                onClick={(e) => e.stopPropagation()}
+                className="
+                    flex flex-col bg-white overflow-hidden
+                    max-lg:fixed max-lg:inset-x-4 max-lg:top-20 max-lg:bottom-4 max-lg:mx-auto max-lg:max-w-[440px] max-lg:rounded-2xl max-lg:shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] max-lg:ring-1 max-lg:ring-black/10 max-lg:z-40 max-lg:animate-in max-lg:fade-in max-lg:zoom-in-95 max-lg:duration-200
+                    lg:relative lg:w-[400px] xl:w-[440px] lg:shrink-0 lg:border-l lg:border-slate-200
+                "
+            >
             <div className="relative h-[68px] shrink-0" style={{ background: bandColor }}>
                 <button
                     onClick={onClose}
@@ -479,7 +492,8 @@ const PlanDetailPanel: React.FC<{
                         PDF
                     </a>
                 )}
-        </aside>
+            </aside>
+        </>
     );
 };
 
