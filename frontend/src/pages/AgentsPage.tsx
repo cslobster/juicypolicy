@@ -25,7 +25,7 @@ const AgentsPage = () => {
 const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void }) => {
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [form, setForm] = useState({
-        username: '', email: '', full_name: '', password: '',
+        username: '', email: '', full_name: '', password: 'test12345',
         wechat_id: '', telephone: '',
     });
     const [error, setError] = useState('');
@@ -102,7 +102,7 @@ const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void })
                             </div>
                         )}
                         <div>
-                            <label className="text-xs font-medium text-slate-600 mb-1 block">密码 {mode === 'register' && '（至少 8 位）'}</label>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">密码 {mode === 'register' && '（默认: test12345，至少 8 位）'}</label>
                             <Input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required minLength={mode === 'register' ? 8 : undefined} />
                         </div>
 

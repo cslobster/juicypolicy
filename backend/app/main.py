@@ -419,11 +419,14 @@ def chat_with_quote(request: ChatRequest, db: Session = Depends(get_db)):
 # --- Agent auth + profile ---
 
 
+DEFAULT_AGENT_PASSWORD = "test12345"
+
+
 class AgentRegisterRequest(BaseModel):
     username: str
     email: str
     full_name: str
-    password: str
+    password: Optional[str] = None
     wechat_id: Optional[str] = None
     telephone: Optional[str] = None
 
@@ -460,7 +463,8 @@ def agent_register(req: AgentRegisterRequest, db: Session = Depends(get_db)):
     email = req.email.strip().lower()
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         raise HTTPException(status_code=400, detail="邮箱格式无效")
-    if len(req.password) < 8:
+    password = req.password or DEFAULT_AGENT_PASSWORD
+    if len(password) < 8:
         raise HTTPException(status_code=400, detail="密码至少需要 8 个字符")
     if not req.full_name.strip():
         raise HTTPException(status_code=400, detail="姓名不能为空")
@@ -473,7 +477,7 @@ def agent_register(req: AgentRegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="用户名或邮箱已被注册")
 
-    digest, salt = hash_password(req.password)
+    digest, salt = hash_password(password)
     agent = models.Agent(
         username=username,
         email=email,
@@ -532,8 +536,13 @@ def agent_update_me(
 @app.get("/api/agents/{username}")
 def agent_public_profile(username: str, db: Session = Depends(get_db)):
     """Public lookup for the per-agent quote-page header."""
+    from sqlalchemy import func
     uname = username.strip().lower()
-    agent = db.query(models.Agent).filter(models.Agent.username == uname).first()
+    agent = (
+        db.query(models.Agent)
+        .filter(func.btrim(models.Agent.username) == uname)
+        .first()
+    )
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
     return {
