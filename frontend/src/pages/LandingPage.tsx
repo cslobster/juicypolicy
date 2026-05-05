@@ -1,5 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Users, ShieldPlus, Facebook, Twitter } from 'lucide-react';
+import { ArrowRight, Users, ShieldPlus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 const HERO_IMAGE = 'https://unicorn-images.b-cdn.net/58fd343d-38bc-4708-90c1-4fb7f4f449aa?optimizer=gif';
@@ -52,8 +52,8 @@ const LandingPage: React.FC = () => {
                     <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
                         <FeatureCard
                             icon={<Users className="h-5 w-5 text-orange-500" />}
-                            title="专业的经纪人"
-                            desc="我们的经纪人都经过严格的培训，为您提供最专业的服务。"
+                            title="专业的代理人"
+                            desc="我们的代理人都经过严格的培训，为您提供最专业的服务。"
                             cta="了解更多"
                             to="/agents"
                         />
@@ -79,32 +79,10 @@ const LandingPage: React.FC = () => {
 
             {/* Footer */}
             <footer className="bg-slate-50 border-t border-slate-200">
-                <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-                    <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-                        <p className="text-sm text-slate-600">
-                            &copy; {new Date().getFullYear()} 鲜橙保险 JuicyPolicy. All rights reserved.
-                        </p>
-                        <div className="flex items-center gap-3">
-                            <a
-                                href="https://www.facebook.com/juicypolicy"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label="Facebook"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 hover:bg-slate-200/60"
-                            >
-                                <Facebook className="h-4 w-4" />
-                            </a>
-                            <a
-                                href="https://www.twitter.com/juicypolicy"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label="Twitter"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 hover:bg-slate-200/60"
-                            >
-                                <Twitter className="h-4 w-4" />
-                            </a>
-                        </div>
-                    </div>
+                <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 text-center">
+                    <p className="text-sm text-slate-600">
+                        &copy; {new Date().getFullYear()} 鲜橙保险 JuicyPolicy. All rights reserved.
+                    </p>
                 </div>
             </footer>
         </div>

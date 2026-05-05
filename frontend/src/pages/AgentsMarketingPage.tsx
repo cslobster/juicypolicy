@@ -20,14 +20,14 @@ const AgentsMarketingPage = () => {
                     <div className="mx-auto mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50">
                         <Users className="h-7 w-7 text-orange-500" />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">加入鲜橙经纪网络</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">加入鲜橙代理网络</h1>
                     <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
                         专属报价站点 + 完整展业工具，专注服务客户。
                     </p>
                     <div className="mt-7 flex items-center justify-center gap-3">
                         <Link to="/login">
                             <Button size="lg" className="rounded-full px-6">
-                                经纪登录
+                                代理登录
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </Link>
@@ -42,7 +42,7 @@ const AgentsMarketingPage = () => {
                 <div className="mx-auto max-w-5xl">
                     <h2 className="text-center text-2xl font-bold text-slate-900">加入即可获得</h2>
                     <p className="mx-auto mt-2 max-w-xl text-center text-sm text-slate-500">
-                        经纪后台内置以下功能模块，登录后即可使用。
+                        代理后台内置以下功能模块，登录后即可使用。
                     </p>
                     <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {features.map((f) => {

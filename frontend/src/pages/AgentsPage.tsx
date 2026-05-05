@@ -63,9 +63,9 @@ const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void })
                     <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-orange-50">
                         <Users className="h-6 w-6 text-orange-500" />
                     </div>
-                    <h1 className="text-center text-2xl font-bold mb-1">经纪{mode === 'login' ? '登录' : '注册'}</h1>
+                    <h1 className="text-center text-2xl font-bold mb-1">代理{mode === 'login' ? '登录' : '注册'}</h1>
                     <p className="text-center text-sm text-slate-500 mb-6">
-                        {mode === 'login' ? '登录以管理您的专属报价站点' : '注册成为鲜橙保险经纪人'}
+                        {mode === 'login' ? '登录以管理您的专属报价站点' : '注册成为鲜橙保险代理人'}
                     </p>
 
                     <form onSubmit={submit} className="space-y-3">
@@ -142,7 +142,7 @@ const baseNavItems: { id: DashboardView; label: string; icon: any }[] = [
     { id: 'training', label: '行业培训', icon: GraduationCap },
 ];
 
-const adminNavItem = { id: 'admin' as DashboardView, label: '经纪管理', icon: ShieldCheck };
+const adminNavItem = { id: 'admin' as DashboardView, label: '保险经纪', icon: ShieldCheck };
 
 const initials = (name: string) =>
     name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || name.slice(0, 2).toUpperCase();
@@ -851,18 +851,18 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
             <div className="max-w-5xl">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">经纪管理</h1>
-                        <p className="text-sm text-slate-500 mt-2">添加新经纪、调整角色、重置密码。</p>
+                        <h1 className="text-2xl font-bold text-slate-900">保险经纪</h1>
+                        <p className="text-sm text-slate-500 mt-2">添加新代理、调整角色、重置密码。</p>
                     </div>
                     <Button onClick={() => setShowCreate(s => !s)} size="sm">
-                        <Plus size={14} className="mr-1.5" /> 添加经纪
+                        <Plus size={14} className="mr-1.5" /> 添加代理
                     </Button>
                 </div>
 
                 {showCreate && (
                     <Card className="mt-6">
                         <CardContent className="pt-6">
-                            <h3 className="font-semibold mb-4">添加新经纪</h3>
+                            <h3 className="font-semibold mb-4">添加新代理</h3>
                             <form onSubmit={submitCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div><label className="text-xs font-medium text-slate-600 mb-1 block">用户名</label>
                                     <Input value={createForm.username} onChange={e => setCreateForm({ ...createForm, username: e.target.value })} required /></div>
@@ -874,7 +874,7 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
                                     <Input value={createForm.password} onChange={e => setCreateForm({ ...createForm, password: e.target.value })} /></div>
                                 <div><label className="text-xs font-medium text-slate-600 mb-1 block">角色</label>
                                     <select value={createForm.role} onChange={e => setCreateForm({ ...createForm, role: e.target.value })} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
-                                        <option value="normal">普通经纪</option>
+                                        <option value="normal">普通代理</option>
                                         <option value="admin">管理员</option>
                                     </select></div>
                                 <div><label className="text-xs font-medium text-slate-600 mb-1 block">电话（可选）</label>
@@ -930,7 +930,7 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
                                         {resetMsg && resetMsg.id === a.id && (
                                             <tr className="bg-emerald-50/60">
                                                 <td colSpan={6} className="px-4 py-3 text-sm text-emerald-900">
-                                                    密码已重置为 <code className="font-mono px-1.5 py-0.5 bg-white rounded">{resetMsg.pw}</code>。请告知该经纪并要求其登录后修改。
+                                                    密码已重置为 <code className="font-mono px-1.5 py-0.5 bg-white rounded">{resetMsg.pw}</code>。请告知该代理并要求其登录后修改。
                                                     <button onClick={() => setResetMsg(null)} className="ml-3 text-xs text-emerald-700 hover:underline">关闭</button>
                                                 </td>
                                             </tr>
@@ -945,7 +945,7 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
                                                             <Input type="email" value={edit.email} onChange={e => setEdit({ ...edit, email: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500">角色</label>
                                                             <select value={edit.role} onChange={e => setEdit({ ...edit, role: e.target.value })} disabled={a.id === currentAgentId} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400">
-                                                                <option value="normal">普通经纪</option>
+                                                                <option value="normal">普通代理</option>
                                                                 <option value="admin">管理员</option>
                                                             </select>
                                                             {a.id === currentAgentId && <p className="text-[10px] text-slate-500 mt-1">不能修改自己的角色</p>}</div>

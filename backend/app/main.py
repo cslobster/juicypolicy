@@ -848,7 +848,7 @@ def admin_update_agent(
 ):
     target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
     if target is None:
-        raise HTTPException(status_code=404, detail="未找到此经纪")
+        raise HTTPException(status_code=404, detail="未找到此代理")
 
     if req.full_name is not None:
         if not req.full_name.strip():
@@ -897,7 +897,7 @@ def admin_reset_password(
 ):
     target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
     if target is None:
-        raise HTTPException(status_code=404, detail="未找到此经纪")
+        raise HTTPException(status_code=404, detail="未找到此代理")
     digest, salt = hash_password(DEFAULT_AGENT_PASSWORD)
     target.hashed_password = digest
     target.salt = salt
