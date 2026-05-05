@@ -41,3 +41,19 @@ export const registerBotPusher = (h: BotPushHandler | null) => {
 export const pushBotMessage = (msg: BotPushMessage) => {
     botPushHandler?.(msg);
 };
+
+// Visibility — ChatInterface only renders when this flag is true.
+let chatVisible = false;
+const visibilitySubs = new Set<(v: boolean) => void>();
+
+export const setChatVisible = (v: boolean) => {
+    if (chatVisible === v) return;
+    chatVisible = v;
+    visibilitySubs.forEach(cb => cb(v));
+};
+
+export const subscribeChatVisibility = (cb: (v: boolean) => void): (() => void) => {
+    visibilitySubs.add(cb);
+    cb(chatVisible);
+    return () => { visibilitySubs.delete(cb); };
+};

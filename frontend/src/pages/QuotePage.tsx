@@ -1291,12 +1291,12 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
     const errClass = "text-xs text-red-500 mt-1";
 
     return (
-        <Card className="animate-fade-in mx-auto mt-8 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
-            <CardContent className="px-7 py-8 sm:px-10 sm:py-10">
+        <Card className="animate-fade-in mx-auto mt-0 sm:mt-8 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
+            <CardContent className="px-5 py-5 sm:px-10 sm:py-10">
                 <div className="mx-auto max-w-[620px]">
                     <section>
-                        <div className="mb-10">
-                            <h2 className="text-2xl font-bold leading-tight tracking-normal">您住在哪里？</h2>
+                        <div className="mb-5 sm:mb-10">
+                            <h2 className="text-xl sm:text-2xl font-bold leading-tight tracking-normal">您住在哪里？</h2>
                             <p className="mt-1 text-sm text-[#858585]">您所在地区会影响可选择的健康保险计划。</p>
                         </div>
 
@@ -1314,8 +1314,8 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
                         </div>
                     </section>
 
-                    <section className="mt-16">
-                        <h2 className="text-2xl font-bold leading-tight tracking-normal">谁需要保障？</h2>
+                    <section className="mt-8 sm:mt-16">
+                        <h2 className="text-xl sm:text-2xl font-bold leading-tight tracking-normal">谁需要保障？</h2>
                         <p className="mt-1 text-sm text-[#858585]">填写需要保险的家庭成员。</p>
 
                         <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -2207,7 +2207,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                         }}
                     />
                 ) : (
-                <div className="flex-1 px-4 py-6 overflow-y-auto flex flex-col gap-5">
+                <div className="flex-1 px-4 py-2 sm:py-6 overflow-y-auto flex flex-col gap-3 sm:gap-5">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex w-full max-w-[768px] mx-auto flex-col ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
                             <div className={`flex flex-col gap-4 break-words text-[#0d0d0d] text-[15px] leading-[1.7] ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-[#f4f4f4] px-5 py-4 rounded-3xl'}`}>
