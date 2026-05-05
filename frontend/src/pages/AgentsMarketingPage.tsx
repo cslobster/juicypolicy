@@ -20,9 +20,9 @@ const AgentsMarketingPage = () => {
                     <div className="mx-auto mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50">
                         <Users className="h-7 w-7 text-orange-500" />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">加入鲜橙保险经纪网络</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">加入鲜橙经纪网络</h1>
                     <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
-                        我们为每位经纪人提供专属报价站点和完整的展业工具，让您专注于服务客户，业务管理交给我们。
+                        专属报价站点 + 完整展业工具，专注服务客户。
                     </p>
                     <div className="mt-7 flex items-center justify-center gap-3">
                         <Link to="/login">
