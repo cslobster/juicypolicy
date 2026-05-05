@@ -1671,31 +1671,10 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
 
     // (Plan selection used to push a chat-bus prompt; replaced by the inline detail panel.)
 
-    // Load previous quote from localStorage or show form
+    // No localStorage restore — every visit starts fresh with the form.
+    // (Drop any leftover key so old sessions don't keep coming back.)
     useEffect(() => {
-        if (!isHealthInsurance || healthPlans.length > 0) return;
-        try {
-            const saved = localStorage.getItem('jp_health_quote_id');
-            if (!saved) { /* no saved quote */ return; }
-            const { id, expires } = JSON.parse(saved);
-            if (Date.now() > expires) {
-                localStorage.removeItem('jp_health_quote_id');
-                               return;
-            }
-            fetch(`${API_BASE}/api/quote/${id}`)
-                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-                .then(data => {
-                    if (data.has_quote && data.quote_data?.plans) {
-                        setHealthPlans(data.quote_data.plans);
-                        setActiveQuoteId(data.quote_id);
-                        setShowHealthResults(true);
-                    } else {
-                                           }
-                })
-                .catch(() => { localStorage.removeItem('jp_health_quote_id'); /* no saved quote */ });
-        } catch {
-            localStorage.removeItem('jp_health_quote_id');
-                   }
+        try { localStorage.removeItem('jp_health_quote_id'); } catch { /* ignore */ }
     }, []);
 
     // Widget States
@@ -1943,18 +1922,10 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                 const rawPlans: HealthPlan[] = quoteData.quote_data?.plans || [];
                 setHealthPlans(rawPlans);
                 setActiveQuoteId(quoteData.quote_id);
-                localStorage.setItem('jp_health_quote_id', JSON.stringify({ id: quoteData.quote_id, expires: Date.now() + 24 * 60 * 60 * 1000 }));
 
                 setIsBotTyping(false);
                 setIsLoadingQuote(false);
-                setMessages(prev => [
-                    ...prev.filter(m => m.id !== placeholderId),
-                    {
-                        id: Date.now().toString(),
-                        sender: 'bot' as const,
-                        text: `已找到 ${rawPlans.length} 个健康保险方案。`,
-                    },
-                ]);
+                setMessages(prev => prev.filter(m => m.id !== placeholderId));
                 setShowHealthResults(true);
                 return;
             }
@@ -2082,6 +2053,12 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
             setMessages([getInitialMessage()]);
             setChatStage(1);
             setLastQuoteData(null);
+            setHealthPlans([]);
+            setActiveQuoteId(null);
+            setQuoteChatMessages([]);
+            setSelectedViewPlan(null);
+            setShowHealthResults(false);
+            try { localStorage.removeItem('jp_health_quote_id'); } catch { /* ignore */ }
             return null;
         }
 
@@ -2272,11 +2249,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
 
                                 {/* === HEALTH QUOTE FORM WIDGET === */}
                                 {msg.interactiveWidget === 'health_form' && (
-                                    <HealthQuoteForm onSubmit={(data) => {
-                                        const summary = `邮编: ${data.zip}, 年龄: ${data.age}, 性别: ${data.sex === 'Male' ? '男' : '女'}, 收入: $${data.income}, 家庭人数: ${data.household_size}`;
-                                        handleSend(summary);
-                                        triggerHealthQuote(data);
-                                    }} />
+                                    <HealthQuoteForm onSubmit={(data) => triggerHealthQuote(data)} />
                                 )}
 
                                 {/* === HEALTH ENROLL WIDGET === */}
