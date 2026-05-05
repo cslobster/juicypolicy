@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -416,6 +416,7 @@ interface AgentQuote {
     quote_id: number;
     created_at: string | null;
     status: string;
+    enrollment_status: string | null;
     zip: string | null;
     age: number | null;
     sex: string | null;
@@ -424,12 +425,33 @@ interface AgentQuote {
     ages_list: number[];
     plan_count: number;
     min_premium: number | null;
+    applicant: {
+        first_name: string | null;
+        middle_name: string | null;
+        last_name: string | null;
+        dob: string | null;
+        phone: string | null;
+        email: string | null;
+        address: string | null;
+        city: string | null;
+        state: string | null;
+        zip: string | null;
+        ssn: string | null;
+        annual_income: string | null;
+    } | null;
+    plan: {
+        plan_name: string | null;
+        carrier: string | null;
+        monthly_premium: number | null;
+    } | null;
 }
 
 const ClientsView = ({ token }: { token: string }) => {
     const [quotes, setQuotes] = useState<AgentQuote[] | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [tab, setTab] = useState<'all' | 'enrolled' | 'quoted'>('all');
+    const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         let cancelled = false;
@@ -441,21 +463,40 @@ const ClientsView = ({ token }: { token: string }) => {
         return () => { cancelled = true; };
     }, [token]);
 
+    const filtered = (quotes || []).filter(q => {
+        if (tab === 'enrolled') return q.enrollment_status === 'submitted';
+        if (tab === 'quoted') return q.enrollment_status !== 'submitted' && q.status === 'quoted';
+        return true;
+    });
+    const enrolledCount = (quotes || []).filter(q => q.enrollment_status === 'submitted').length;
+    const quotedOnlyCount = (quotes || []).filter(q => q.enrollment_status !== 'submitted' && q.status === 'quoted').length;
+
     const fmtDate = (iso: string | null) => {
         if (!iso) return '—';
         const d = new Date(iso);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     };
     const sexLabel = (s: string | null) => s === 'Male' ? '男' : s === 'Female' ? '女' : '—';
-    const statusBadge = (s: string) => {
+    const statusBadge = (q: AgentQuote) => {
+        if (q.enrollment_status === 'submitted') {
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">已申请</span>;
+        }
         const map: Record<string, { bg: string; text: string; label: string }> = {
             quoted: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: '已报价' },
             error: { bg: 'bg-red-100', text: 'text-red-800', label: '失败' },
             scraping: { bg: 'bg-amber-100', text: 'text-amber-800', label: '处理中' },
             pending: { bg: 'bg-slate-100', text: 'text-slate-700', label: '等待中' },
+            enrollment: { bg: 'bg-violet-100', text: 'text-violet-800', label: '已申请' },
         };
-        const cfg = map[s] || { bg: 'bg-slate-100', text: 'text-slate-700', label: s };
+        const cfg = map[q.status] || { bg: 'bg-slate-100', text: 'text-slate-700', label: q.status };
         return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>;
+    };
+    const toggleRow = (id: number) => {
+        setExpanded(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
     };
 
     return (
@@ -464,16 +505,29 @@ const ClientsView = ({ token }: { token: string }) => {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">客户</h1>
-                        <p className="text-sm text-slate-500 mt-2">通过您的专属链接提交报价的客户。</p>
+                        <p className="text-sm text-slate-500 mt-2">通过您的专属链接提交报价或申请的客户。</p>
                     </div>
-                    {quotes && quotes.length > 0 && (
-                        <span className="text-sm text-slate-600">共 {quotes.length} 条</span>
-                    )}
                 </div>
 
-                {loading && (
-                    <div className="mt-8 text-sm text-slate-500">加载中...</div>
-                )}
+                <div className="mt-4 flex items-center gap-1 rounded-full bg-slate-100 p-1 w-fit">
+                    {[
+                        { id: 'all', label: `全部 (${quotes?.length ?? 0})` },
+                        { id: 'enrolled', label: `已申请 (${enrolledCount})` },
+                        { id: 'quoted', label: `仅报价 (${quotedOnlyCount})` },
+                    ].map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setTab(t.id as any)}
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                                tab === t.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+
+                {loading && <div className="mt-8 text-sm text-slate-500">加载中...</div>}
 
                 {error && (
                     <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -481,54 +535,90 @@ const ClientsView = ({ token }: { token: string }) => {
                     </div>
                 )}
 
-                {!loading && quotes && quotes.length === 0 && (
+                {!loading && filtered.length === 0 && (
                     <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                         <UserCircle size={36} className="mx-auto text-slate-300" />
-                        <h3 className="mt-4 text-base font-semibold text-slate-900">暂无客户</h3>
+                        <h3 className="mt-4 text-base font-semibold text-slate-900">
+                            {tab === 'enrolled' ? '暂无投保申请' : tab === 'quoted' ? '暂无仅报价客户' : '暂无客户'}
+                        </h3>
                         <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
-                            将您的专属报价链接分享给客户后，他们的报价请求会显示在这里。
+                            将您的专属报价链接分享给客户后，他们的请求会显示在这里。
                         </p>
                     </div>
                 )}
 
-                {quotes && quotes.length > 0 && (
+                {filtered.length > 0 && (
                     <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
                                 <tr>
+                                    <th className="px-3 py-3 text-left font-medium w-8"></th>
                                     <th className="px-4 py-3 text-left font-medium">日期</th>
                                     <th className="px-4 py-3 text-left font-medium">状态</th>
-                                    <th className="px-4 py-3 text-left font-medium">邮编</th>
-                                    <th className="px-4 py-3 text-left font-medium">主申</th>
+                                    <th className="px-4 py-3 text-left font-medium">客户</th>
+                                    <th className="px-4 py-3 text-left font-medium">联系方式</th>
                                     <th className="px-4 py-3 text-left font-medium">家庭</th>
-                                    <th className="px-4 py-3 text-left font-medium">年收入</th>
-                                    <th className="px-4 py-3 text-right font-medium">方案数</th>
-                                    <th className="px-4 py-3 text-right font-medium">最低保费</th>
+                                    <th className="px-4 py-3 text-right font-medium">月保费</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {quotes.map(q => (
-                                    <tr key={q.quote_id} className="hover:bg-slate-50/60">
-                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtDate(q.created_at)}</td>
-                                        <td className="px-4 py-3">{statusBadge(q.status)}</td>
-                                        <td className="px-4 py-3 text-slate-700">{q.zip || '—'}</td>
-                                        <td className="px-4 py-3 text-slate-700">
-                                            {q.age ?? '—'} <span className="text-slate-400">岁</span>
-                                            {q.sex && <span className="text-slate-400 ml-1">·</span>} {sexLabel(q.sex)}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-700">
-                                            {q.household_size ?? 1} 人
-                                            {q.ages_list.length > 0 && (
-                                                <span className="text-xs text-slate-500 ml-1">({q.ages_list.join(', ')})</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 text-slate-700">{q.income ? `$${Number(q.income).toLocaleString()}` : '—'}</td>
-                                        <td className="px-4 py-3 text-right text-slate-700">{q.plan_count}</td>
-                                        <td className="px-4 py-3 text-right text-slate-900 font-medium">
-                                            {q.min_premium != null ? `$${q.min_premium.toFixed(0)}/月` : '—'}
-                                        </td>
-                                    </tr>
-                                ))}
+                                {filtered.map(q => {
+                                    const a = q.applicant;
+                                    const isOpen = expanded.has(q.quote_id);
+                                    const hasDetails = !!a;
+                                    const customerName = a && (a.first_name || a.last_name) ? `${a.last_name || ''}${a.first_name || ''}`.trim() : `#${q.quote_id}`;
+                                    return (
+                                    <React.Fragment key={q.quote_id}>
+                                        <tr className={`hover:bg-slate-50/60 ${hasDetails ? 'cursor-pointer' : ''}`} onClick={() => hasDetails && toggleRow(q.quote_id)}>
+                                            <td className="px-3 py-3 text-slate-400">
+                                                {hasDetails ? (isOpen ? '▾' : '▸') : ''}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtDate(q.created_at)}</td>
+                                            <td className="px-4 py-3">{statusBadge(q)}</td>
+                                            <td className="px-4 py-3 text-slate-900 font-medium">
+                                                {customerName}
+                                                <span className="text-xs text-slate-500 ml-1.5 font-normal">
+                                                    {q.age ?? '—'}岁{q.sex && ` · ${sexLabel(q.sex)}`}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                                                {a?.phone || a?.email || (q.zip ? `${q.zip}` : '—')}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-700">
+                                                {q.household_size ?? 1} 人
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-900 font-medium">
+                                                {q.plan?.monthly_premium != null
+                                                    ? `$${q.plan.monthly_premium.toFixed(0)}`
+                                                    : q.min_premium != null
+                                                        ? `$${q.min_premium.toFixed(0)}起`
+                                                        : '—'}
+                                            </td>
+                                        </tr>
+                                        {isOpen && a && (
+                                            <tr className="bg-slate-50/60">
+                                                <td colSpan={7} className="px-6 py-4">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                                                        {q.plan?.plan_name && (
+                                                            <div className="col-span-full mb-2 pb-2 border-b border-slate-200/70">
+                                                                <span className="text-xs text-slate-500">投保计划</span>
+                                                                <p className="font-medium text-slate-900">{q.plan.plan_name} · {q.plan.carrier}</p>
+                                                            </div>
+                                                        )}
+                                                        <Field label="姓名" value={[a.last_name, a.middle_name, a.first_name].filter(Boolean).join(' ')} />
+                                                        <Field label="出生日期" value={a.dob} />
+                                                        <Field label="电话" value={a.phone} />
+                                                        <Field label="邮箱" value={a.email} />
+                                                        <Field label="社会安全号码" value={a.ssn} />
+                                                        <Field label="年收入" value={a.annual_income ? `$${Number(a.annual_income).toLocaleString()}` : null} />
+                                                        <Field label="地址" value={[a.address, a.city, a.state, a.zip].filter(Boolean).join(', ')} className="col-span-full" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -537,6 +627,13 @@ const ClientsView = ({ token }: { token: string }) => {
         </div>
     );
 };
+
+const Field = ({ label, value, className = '' }: { label: string; value: string | null | undefined; className?: string }) => (
+    <div className={className}>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-slate-900 mt-0.5 break-words">{value || <span className="text-slate-400">—</span>}</p>
+    </div>
+);
 
 const MarketingView = ({ agent }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;

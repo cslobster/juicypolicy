@@ -14,6 +14,8 @@ class Quote(Base):
     status_message = Column(String(200), default="Waiting for worker...")
     has_quote = Column(Boolean, default=False)
     agent_id = Column(Integer, ForeignKey("jp_agents.id"), nullable=True, index=True)
+    enrollment_data = Column(JSONB, nullable=True)
+    enrollment_status = Column(String(20), nullable=True)  # null, "submitted", "contacted"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

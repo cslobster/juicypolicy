@@ -577,7 +577,7 @@ def agent_update_me(
 
 @app.get("/api/agents/me/quotes")
 def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(get_db)):
-    """Quotes submitted via this agent's per-agent URL."""
+    """Quotes + enrollments submitted via this agent's per-agent URL."""
     quotes = (
         db.query(models.Quote)
         .filter(models.Quote.agent_id == agent_id)
@@ -590,10 +590,14 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
         cd = q.customer_data or {}
         plans = (q.quote_data or {}).get("plans", []) if q.has_quote else []
         prices = [p.get("monthly_premium") for p in plans if isinstance(p.get("monthly_premium"), (int, float))]
+        enroll = q.enrollment_data or {}
+        applicant = enroll.get("applicant") or {}
+        plan_ctx = enroll.get("plan") or {}
         out.append({
             "quote_id": q.quote_id,
             "created_at": q.created_at.isoformat() if q.created_at else None,
             "status": q.quote_status,
+            "enrollment_status": q.enrollment_status,
             "zip": cd.get("zip"),
             "age": cd.get("age"),
             "sex": cd.get("sex"),
@@ -602,8 +606,75 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
             "ages_list": cd.get("ages_list") or [],
             "plan_count": len(plans),
             "min_premium": min(prices) if prices else None,
+            "applicant": {
+                "first_name": applicant.get("firstName") or applicant.get("first_name"),
+                "middle_name": applicant.get("middleName") or applicant.get("middle_name"),
+                "last_name": applicant.get("lastName") or applicant.get("last_name"),
+                "dob": applicant.get("dob"),
+                "phone": applicant.get("phone"),
+                "email": applicant.get("email"),
+                "address": applicant.get("address"),
+                "city": applicant.get("city"),
+                "state": applicant.get("state"),
+                "zip": applicant.get("zip"),
+                "ssn": applicant.get("ssn"),
+                "annual_income": applicant.get("annualIncome") or applicant.get("annual_income"),
+            } if applicant else None,
+            "plan": {
+                "plan_name": plan_ctx.get("plan_name"),
+                "carrier": plan_ctx.get("carrier"),
+                "monthly_premium": plan_ctx.get("monthly_premium"),
+            } if plan_ctx else None,
         })
     return {"quotes": out}
+
+
+class EnrollmentRequest(BaseModel):
+    quote_id: Optional[int] = None
+    agent_username: Optional[str] = None
+    plan: dict
+    applicant: dict
+
+
+@app.post("/api/enrollments")
+def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
+    """Persist applicant info for a chosen plan. Tied to a quote when possible."""
+    quote = None
+    if req.quote_id:
+        quote = db.query(models.Quote).filter(models.Quote.quote_id == req.quote_id).first()
+
+    agent_id: Optional[int] = None
+    if req.agent_username:
+        slug = req.agent_username.strip().lower()
+        from sqlalchemy import func as _func
+        agent = db.query(models.Agent).filter(_func.btrim(models.Agent.username) == slug).first()
+        if agent:
+            agent_id = agent.id
+
+    if quote is None:
+        # Standalone enrollment (no preceding quote) — create a placeholder row
+        quote = models.Quote(
+            customer_data={"source": "enrollment_only"},
+            quote_status="enrollment",
+            status_message="Enrollment received",
+            has_quote=False,
+            agent_id=agent_id,
+        )
+        db.add(quote)
+        db.commit()
+        db.refresh(quote)
+    elif agent_id and quote.agent_id is None:
+        # Backfill agent attribution if it was missing
+        quote.agent_id = agent_id
+
+    quote.enrollment_data = {
+        "plan": req.plan,
+        "applicant": req.applicant,
+    }
+    quote.enrollment_status = "submitted"
+    db.commit()
+    db.refresh(quote)
+    return {"quote_id": quote.quote_id, "enrollment_status": quote.enrollment_status}
 
 
 @app.get("/api/agents/{username}")

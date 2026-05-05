@@ -114,6 +114,33 @@ const CarrierLogo: React.FC<{ carrier: string; size: number; className?: string 
     );
 };
 
+const formatSSN = (raw: string): string => {
+    const digits = raw.replace(/\D/g, '').slice(0, 9);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+};
+
+const US_STATES = [
+    { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+    { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+    { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'District of Columbia' },
+    { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+    { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
+    { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
+    { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
+    { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+    { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
+    { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
+    { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
+    { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+    { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
+    { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' },
+    { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
+    { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
+    { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
+];
+
 const isHsaEligible = (plan: HealthPlan) =>
     plan.features?.some(f => /HSA/i.test(f)) ?? false;
 
@@ -878,16 +905,16 @@ const LifeDetailsWidget: React.FC<{ onSubmit: (text: string, data: any) => void 
     );
 };
 
-const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) => void; onBack: () => void }> = ({ plan, onSubmit, onBack }) => {
+const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string, formData: Record<string, any>) => void; onBack: () => void }> = ({ plan, onSubmit, onBack }) => {
     const [form, setForm] = useState({
         firstName: '', middleName: '', lastName: '',
         dob: '', gender: '', maritalStatus: '',
         ssn: '',
         phone: '', email: '',
         preferredLang: '中文',
-        address: '', apt: '', city: '', state: '', zip: '',
+        address: '', apt: '', city: '', state: 'CA', zip: '',
         mailingSame: true,
-        mailAddress: '', mailApt: '', mailCity: '', mailState: '', mailZip: '',
+        mailAddress: '', mailApt: '', mailCity: '', mailState: 'CA', mailZip: '',
         taxStatus: '',
         annualIncome: '', incomeType: 'employment',
         qualifyingEvent: '',
@@ -1011,8 +1038,10 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                                 <Input value={form.city} onChange={e => set('city', e.target.value)} />
                             </div>
                             <div>
-                                <label className={labelClass}>州</label>
-                                <Input value={form.state} disabled className="bg-muted" />
+                                <label className={labelClass}>州 *</label>
+                                <select value={form.state} onChange={e => set('state', e.target.value)} className={selectClass}>
+                                    {US_STATES.map(s => <option key={s.code} value={s.code}>{s.code} - {s.name}</option>)}
+                                </select>
                             </div>
                             <div>
                                 <label className={labelClass}>邮编 *</label>
@@ -1048,7 +1077,14 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                 {/* 4. SSN */}
                 <div>
                     {optLabel('社会安全号码')}
-                    <Input type="text" placeholder="XXX-XX-XXXX" value={form.ssn} onChange={e => set('ssn', e.target.value)} className="max-w-xs" />
+                    <Input
+                        type="text"
+                        placeholder="XXX-XX-XXXX"
+                        maxLength={11}
+                        value={form.ssn}
+                        onChange={e => set('ssn', formatSSN(e.target.value))}
+                        className="max-w-xs"
+                    />
                 </div>
 
                 {/* 5. Tax Info */}
@@ -1171,7 +1207,7 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string) 
                         返回选择
                     </Button>
                     <Button className="flex-1" disabled={!isValid}
-                        onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.phone}, ${form.email || '无邮箱'}`)}>
+                        onClick={() => onSubmit(`申请人: ${form.firstName} ${form.lastName}, ${form.phone}, ${form.email || '无邮箱'}`, form)}>
                         提交申请
                     </Button>
                 </div>
@@ -2229,20 +2265,43 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                                 {msg.interactiveWidget === 'health_enroll' && enrollingPlan && (
                                     <HealthEnrollWidget plan={enrollingPlan} onBack={() => {
                                         setShowHealthResults(true);
-                                    }} onSubmit={(text) => {
+                                    }} onSubmit={async (text, formData) => {
                                         setMessages(prev => [
                                             ...prev.map(m => ({ ...m, interactiveWidget: undefined as any })),
                                             { id: Date.now().toString(), sender: 'user' as const, text },
                                         ]);
                                         setIsBotTyping(true);
-                                        setTimeout(() => {
-                                            setIsBotTyping(false);
-                                            setMessages(prev => [...prev, {
-                                                id: (Date.now() + 1).toString(),
-                                                sender: 'bot' as const,
-                                                text: `您的投保申请已提交！\n\n计划: ${enrollingPlan.plan_name}\n保险公司: ${enrollingPlan.carrier}\n月保费: $${enrollingPlan.monthly_premium?.toFixed(2)}\n\n我们的顾问将在1个工作日内与您联系确认投保信息。感谢您使用鲜橙保险！`,
-                                            }]);
-                                        }, 1500);
+
+                                        try {
+                                            await fetch(`${API_BASE}/api/enrollments`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    quote_id: activeQuoteId,
+                                                    agent_username: agentUsername,
+                                                    plan: {
+                                                        plan_id: enrollingPlan.plan_id,
+                                                        plan_name: enrollingPlan.plan_name,
+                                                        carrier: enrollingPlan.carrier,
+                                                        plan_type: enrollingPlan.plan_type,
+                                                        network_type: enrollingPlan.network_type,
+                                                        monthly_premium: enrollingPlan.monthly_premium,
+                                                        deductible: enrollingPlan.deductible,
+                                                        max_out_of_pocket: enrollingPlan.max_out_of_pocket,
+                                                    },
+                                                    applicant: formData || {},
+                                                }),
+                                            });
+                                        } catch (err) {
+                                            console.warn('Failed to persist enrollment', err);
+                                        }
+
+                                        setIsBotTyping(false);
+                                        setMessages(prev => [...prev, {
+                                            id: (Date.now() + 1).toString(),
+                                            sender: 'bot' as const,
+                                            text: `您的投保申请已提交！\n\n计划: ${enrollingPlan.plan_name}\n保险公司: ${enrollingPlan.carrier}\n月保费: $${enrollingPlan.monthly_premium?.toFixed(2)}\n\n我们的顾问将在1个工作日内与您联系确认投保信息。感谢您使用鲜橙保险！`,
+                                        }]);
                                     }} />
                                 )}
 
