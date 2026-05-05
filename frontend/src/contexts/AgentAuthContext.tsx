@@ -7,6 +7,7 @@ export interface AgentProfile {
     full_name: string;
     wechat_id: string | null;
     telephone: string | null;
+    wechat_qr: string | null;
 }
 
 interface AgentAuthContextType {

@@ -29,5 +29,6 @@ class Agent(Base):
     salt = Column(LargeBinary, nullable=False)
     wechat_id = Column(String(80), nullable=True)
     telephone = Column(String(40), nullable=True)
+    wechat_qr = Column(String, nullable=True)  # data URL (base64) of WeChat QR image
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

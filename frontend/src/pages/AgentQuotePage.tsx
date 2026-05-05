@@ -12,6 +12,7 @@ interface AgentPublic {
     email: string;
     wechat_id: string | null;
     telephone: string | null;
+    wechat_qr: string | null;
 }
 
 const AgentQuotePage = () => {

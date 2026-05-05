@@ -452,8 +452,13 @@ class AgentLoginRequest(BaseModel):
 
 class AgentProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
+    email: Optional[str] = None
     wechat_id: Optional[str] = None
     telephone: Optional[str] = None
+    wechat_qr: Optional[str] = None  # data URL or empty string to clear
+
+
+MAX_QR_BYTES = 800_000  # ~600 KB after base64 overhead
 
 
 def _agent_to_dict(agent: models.Agent) -> dict:
@@ -464,6 +469,7 @@ def _agent_to_dict(agent: models.Agent) -> dict:
         "full_name": agent.full_name,
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
+        "wechat_qr": agent.wechat_qr,
     }
 
 
@@ -538,10 +544,32 @@ def agent_update_me(
         if not req.full_name.strip():
             raise HTTPException(status_code=400, detail="姓名不能为空")
         agent.full_name = req.full_name.strip()
+    if req.email is not None:
+        new_email = req.email.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
+            raise HTTPException(status_code=400, detail="邮箱格式无效")
+        if new_email != agent.email:
+            taken = db.query(models.Agent).filter(
+                models.Agent.email == new_email,
+                models.Agent.id != agent.id,
+            ).first()
+            if taken:
+                raise HTTPException(status_code=409, detail="该邮箱已被注册")
+            agent.email = new_email
     if req.wechat_id is not None:
         agent.wechat_id = req.wechat_id.strip() or None
     if req.telephone is not None:
         agent.telephone = req.telephone.strip() or None
+    if req.wechat_qr is not None:
+        v = req.wechat_qr.strip()
+        if not v:
+            agent.wechat_qr = None
+        else:
+            if not v.startswith("data:image/"):
+                raise HTTPException(status_code=400, detail="二维码必须是图片（data URL）")
+            if len(v) > MAX_QR_BYTES:
+                raise HTTPException(status_code=413, detail="二维码图片过大，请上传小于 600KB 的图片")
+            agent.wechat_qr = v
     db.commit()
     db.refresh(agent)
     return _agent_to_dict(agent)
@@ -596,4 +624,5 @@ def agent_public_profile(username: str, db: Session = Depends(get_db)):
         "email": agent.email,
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
+        "wechat_qr": agent.wechat_qr,
     }

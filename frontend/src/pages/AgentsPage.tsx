@@ -213,15 +213,15 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
 
             {/* Main */}
             <main className="flex-1 overflow-y-auto pt-12 md:pt-0">
-                {view === 'home' && <HomeView agent={agent} />}
+                {view === 'home' && <HomeView agent={agent} token={token} onUpdate={onUpdate} />}
                 {view === 'clients' && <ClientsView token={token} />}
-                {view === 'marketing' && <MarketingView agent={agent} token={token} onUpdate={onUpdate} />}
+                {view === 'marketing' && <MarketingView agent={agent} /> }
             </main>
         </div>
     );
 };
 
-const HomeView = ({ agent }: any) => {
+const HomeView = ({ agent, token, onUpdate }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;
     const [copied, setCopied] = useState(false);
     const copy = async () => {
@@ -254,15 +254,152 @@ const HomeView = ({ agent }: any) => {
                     </button>
                 </div>
 
+                <h2 className="mt-8 text-base font-semibold text-slate-900">您的联系信息</h2>
+                <p className="text-xs text-slate-500 mt-1">客户将在 {url} 看到这些信息。</p>
+                <div className="mt-3">
+                    <ContactInfoCard agent={agent} token={token} onUpdate={onUpdate} />
+                </div>
+
                 <h2 className="mt-8 text-base font-semibold text-slate-900">入门清单</h2>
                 <div className="mt-3 rounded-xl bg-white border border-slate-200 divide-y divide-slate-100">
                     <ChecklistRow done label="完善您的联系方式（电话、微信、邮箱）" />
                     <ChecklistRow done={!!agent.telephone} label="设置电话以便客户来电咨询" />
                     <ChecklistRow done={!!agent.wechat_id} label="设置微信 ID 以接收客户咨询" />
+                    <ChecklistRow done={!!agent.wechat_qr} label="上传微信二维码方便客户扫码添加" />
                     <ChecklistRow done={false} label="将专属链接分享至社交媒体或客户群" />
                 </div>
             </div>
         </div>
+    );
+};
+
+const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState({
+        full_name: agent.full_name,
+        email: agent.email,
+        wechat_id: agent.wechat_id || '',
+        telephone: agent.telephone || '',
+        wechat_qr: agent.wechat_qr || '',
+    });
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+
+    // Re-sync draft when agent changes (after save)
+    useEffect(() => {
+        setDraft({
+            full_name: agent.full_name,
+            email: agent.email,
+            wechat_id: agent.wechat_id || '',
+            telephone: agent.telephone || '',
+            wechat_qr: agent.wechat_qr || '',
+        });
+    }, [agent]);
+
+    const save = async () => {
+        setError('');
+        setSaving(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/agents/me`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(draft),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '保存失败');
+            onUpdate(data);
+            setEditing(false);
+        } catch (err: any) { setError(err.message || '保存失败'); }
+        finally { setSaving(false); }
+    };
+
+    const handleQrFile = async (file: File) => {
+        if (!file.type.startsWith('image/')) { setError('请上传图片文件'); return; }
+        if (file.size > 600 * 1024) { setError('图片大小不能超过 600KB'); return; }
+        setError('');
+        const reader = new FileReader();
+        reader.onload = () => setDraft({ ...draft, wechat_qr: reader.result as string });
+        reader.onerror = () => setError('无法读取图片');
+        reader.readAsDataURL(file);
+    };
+
+    return (
+        <Card>
+            <CardContent className="pt-6">
+                <div className="flex items-center justify-end mb-4">
+                    {!editing && <Button size="sm" variant="outline" onClick={() => setEditing(true)}>编辑</Button>}
+                </div>
+
+                {editing ? (
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">姓名</label>
+                            <Input value={draft.full_name} onChange={e => setDraft({ ...draft, full_name: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">邮箱</label>
+                            <Input type="email" value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">电话</label>
+                            <Input value={draft.telephone} onChange={e => setDraft({ ...draft, telephone: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">微信 ID</label>
+                            <Input value={draft.wechat_id} onChange={e => setDraft({ ...draft, wechat_id: e.target.value })} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">微信二维码</label>
+                            <div className="flex items-start gap-3">
+                                {draft.wechat_qr && (
+                                    <img src={draft.wechat_qr} alt="WeChat QR" className="w-24 h-24 rounded-lg object-cover border border-slate-200 shrink-0" />
+                                )}
+                                <div className="flex-1 space-y-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={e => e.target.files?.[0] && handleQrFile(e.target.files[0])}
+                                        className="text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:cursor-pointer hover:file:bg-slate-50"
+                                    />
+                                    <p className="text-[11px] text-slate-500">支持 JPG/PNG，建议小于 600KB。</p>
+                                    {draft.wechat_qr && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDraft({ ...draft, wechat_qr: '' })}
+                                            className="text-xs text-red-600 hover:underline"
+                                        >
+                                            移除二维码
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        {error && <p className="text-sm text-red-600">{error}</p>}
+                        <div className="flex gap-2 pt-2">
+                            <Button size="sm" onClick={save} disabled={saving}>{saving ? '保存中...' : '保存'}</Button>
+                            <Button size="sm" variant="outline" onClick={() => {
+                                setDraft({ full_name: agent.full_name, email: agent.email, wechat_id: agent.wechat_id || '', telephone: agent.telephone || '', wechat_qr: agent.wechat_qr || '' });
+                                setEditing(false); setError('');
+                            }}>取消</Button>
+                        </div>
+                    </div>
+                ) : (
+                    <dl className="space-y-2.5 text-sm">
+                        <div className="flex"><dt className="w-24 text-slate-500">姓名</dt><dd className="text-slate-900">{agent.full_name}</dd></div>
+                        <div className="flex"><dt className="w-24 text-slate-500">邮箱</dt><dd className="text-slate-900">{agent.email}</dd></div>
+                        <div className="flex"><dt className="w-24 text-slate-500">电话</dt><dd className="text-slate-900">{agent.telephone || <span className="text-slate-400">未设置</span>}</dd></div>
+                        <div className="flex"><dt className="w-24 text-slate-500">微信 ID</dt><dd className="text-slate-900">{agent.wechat_id || <span className="text-slate-400">未设置</span>}</dd></div>
+                        <div className="flex items-start"><dt className="w-24 text-slate-500 mt-1">微信二维码</dt>
+                            <dd>
+                                {agent.wechat_qr
+                                    ? <img src={agent.wechat_qr} alt="WeChat QR" className="w-24 h-24 rounded-lg object-cover border border-slate-200" />
+                                    : <span className="text-slate-400">未设置</span>}
+                            </dd>
+                        </div>
+                    </dl>
+                )}
+            </CardContent>
+        </Card>
     );
 };
 
@@ -401,83 +538,17 @@ const ClientsView = ({ token }: { token: string }) => {
     );
 };
 
-const MarketingView = ({ agent, token, onUpdate }: any) => {
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState({
-        full_name: agent.full_name,
-        wechat_id: agent.wechat_id || '',
-        telephone: agent.telephone || '',
-    });
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-
+const MarketingView = ({ agent }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;
-
-    const save = async () => {
-        setError('');
-        setSaving(true);
-        try {
-            const res = await fetch(`${API_BASE}/api/agents/me`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(draft),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || '保存失败');
-            onUpdate(data);
-            setEditing(false);
-        } catch (err: any) { setError(err.message || '保存失败'); }
-        finally { setSaving(false); }
-    };
-
     return (
         <div className="px-6 py-8 lg:px-10">
             <div className="max-w-3xl">
                 <h1 className="text-2xl font-bold text-slate-900">推广</h1>
-                <p className="text-sm text-slate-500 mt-2">管理您的对外联系信息和分享素材。</p>
+                <p className="text-sm text-slate-500 mt-2">分享素材帮助您将专属链接推广给潜在客户。</p>
 
                 <Card className="mt-6">
                     <CardContent className="pt-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold">您的联系信息</h3>
-                            {!editing && <Button size="sm" variant="outline" onClick={() => setEditing(true)}>编辑</Button>}
-                        </div>
-                        <p className="text-xs text-slate-500 -mt-2 mb-4">客户将在 {url} 看到这些信息。</p>
-
-                        {editing ? (
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs font-medium text-slate-600 mb-1 block">姓名</label>
-                                    <Input value={draft.full_name} onChange={e => setDraft({ ...draft, full_name: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-600 mb-1 block">电话</label>
-                                    <Input value={draft.telephone} onChange={e => setDraft({ ...draft, telephone: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-medium text-slate-600 mb-1 block">微信 ID</label>
-                                    <Input value={draft.wechat_id} onChange={e => setDraft({ ...draft, wechat_id: e.target.value })} />
-                                </div>
-                                {error && <p className="text-sm text-red-600">{error}</p>}
-                                <div className="flex gap-2 pt-2">
-                                    <Button size="sm" onClick={save} disabled={saving}>{saving ? '保存中...' : '保存'}</Button>
-                                    <Button size="sm" variant="outline" onClick={() => { setDraft({ full_name: agent.full_name, wechat_id: agent.wechat_id || '', telephone: agent.telephone || '' }); setEditing(false); setError(''); }}>取消</Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <dl className="space-y-2.5 text-sm">
-                                <div className="flex"><dt className="w-24 text-slate-500">姓名</dt><dd className="text-slate-900">{agent.full_name}</dd></div>
-                                <div className="flex"><dt className="w-24 text-slate-500">邮箱</dt><dd className="text-slate-900">{agent.email}</dd></div>
-                                <div className="flex"><dt className="w-24 text-slate-500">电话</dt><dd className="text-slate-900">{agent.telephone || <span className="text-slate-400">未设置</span>}</dd></div>
-                                <div className="flex"><dt className="w-24 text-slate-500">微信 ID</dt><dd className="text-slate-900">{agent.wechat_id || <span className="text-slate-400">未设置</span>}</dd></div>
-                            </dl>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="mt-4">
-                    <CardContent className="pt-6">
-                        <h3 className="font-semibold mb-3">分享素材</h3>
+                        <h3 className="font-semibold mb-3">分享文案</h3>
                         <div className="space-y-3 text-sm">
                             <div>
                                 <p className="text-xs text-slate-500 mb-1">推荐文案（中文）</p>
