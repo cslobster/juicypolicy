@@ -1668,14 +1668,54 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
     const [quoteChatMessages, setQuoteChatMessages] = useState<Message[]>([]);
     const [highlightedPlans, setHighlightedPlans] = useState<string[]>([]);
     const [selectedViewPlan, setSelectedViewPlan] = useState<HealthPlan | null>(null);
+    const [resumeQuoteId, setResumeQuoteId] = useState<number | null>(null);
+    const [resuming, setResuming] = useState(false);
 
     // (Plan selection used to push a chat-bus prompt; replaced by the inline detail panel.)
 
-    // No localStorage restore — every visit starts fresh with the form.
-    // (Drop any leftover key so old sessions don't keep coming back.)
+    // Don't auto-load past quotes — instead, surface a small banner if one exists.
     useEffect(() => {
-        try { localStorage.removeItem('jp_health_quote_id'); } catch { /* ignore */ }
-    }, []);
+        if (!isHealthInsurance) return;
+        try {
+            const saved = localStorage.getItem('jp_health_quote_id');
+            if (!saved) return;
+            const { id, expires } = JSON.parse(saved);
+            if (!id || (expires && Date.now() > expires)) {
+                localStorage.removeItem('jp_health_quote_id');
+                return;
+            }
+            setResumeQuoteId(id);
+        } catch {
+            try { localStorage.removeItem('jp_health_quote_id'); } catch { /* */ }
+        }
+    }, [isHealthInsurance]);
+
+    const dismissResumeBanner = () => {
+        setResumeQuoteId(null);
+        try { localStorage.removeItem('jp_health_quote_id'); } catch { /* */ }
+    };
+
+    const resumePastQuote = async () => {
+        if (!resumeQuoteId || resuming) return;
+        setResuming(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/quote/${resumeQuoteId}`);
+            if (!res.ok) throw new Error('not found');
+            const data = await res.json();
+            if (data.has_quote && data.quote_data?.plans) {
+                setHealthPlans(data.quote_data.plans);
+                setActiveQuoteId(data.quote_id);
+                setShowHealthResults(true);
+                setResumeQuoteId(null);
+            } else {
+                dismissResumeBanner();
+            }
+        } catch {
+            dismissResumeBanner();
+        } finally {
+            setResuming(false);
+        }
+    };
 
     // Widget States
     const [citizenship, setCitizenship] = useState('');
@@ -1922,11 +1962,18 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                 const rawPlans: HealthPlan[] = quoteData.quote_data?.plans || [];
                 setHealthPlans(rawPlans);
                 setActiveQuoteId(quoteData.quote_id);
+                try {
+                    localStorage.setItem('jp_health_quote_id', JSON.stringify({
+                        id: quoteData.quote_id,
+                        expires: Date.now() + 24 * 60 * 60 * 1000,
+                    }));
+                } catch { /* ignore */ }
 
                 setIsBotTyping(false);
                 setIsLoadingQuote(false);
                 setMessages(prev => prev.filter(m => m.id !== placeholderId));
                 setShowHealthResults(true);
+                setResumeQuoteId(null);
                 return;
             }
 
@@ -2182,6 +2229,27 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                     />
                 ) : (
                 <div className="flex-1 px-4 py-2 sm:py-6 overflow-y-auto flex flex-col gap-3 sm:gap-5">
+                    {resumeQuoteId && !showHealthResults && (
+                        <div className="mx-auto w-full max-w-[768px] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-2.5 text-sm">
+                            <span className="text-slate-700">您有上次的报价记录。</span>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={resumePastQuote}
+                                    disabled={resuming}
+                                    className="font-medium text-orange-700 hover:underline disabled:opacity-60"
+                                >
+                                    {resuming ? '加载中...' : '查看之前的报价'}
+                                </button>
+                                <button
+                                    onClick={dismissResumeBanner}
+                                    className="text-slate-400 hover:text-slate-700"
+                                    aria-label="关闭"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex w-full max-w-[768px] mx-auto flex-col ${msg.sender === 'bot' ? 'items-start' : 'items-end'}`}>
                             <div className={`flex flex-col gap-4 break-words text-[#0d0d0d] text-[15px] leading-[1.7] ${msg.sender === 'bot' ? 'max-w-full' : 'max-w-[85%] bg-[#f4f4f4] px-5 py-4 rounded-3xl'}`}>
