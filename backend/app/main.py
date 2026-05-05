@@ -585,19 +585,30 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
         .limit(500)
         .all()
     )
+
+    # Index latest enrollment per quote
+    enroll_rows = (
+        db.query(models.Enrollment)
+        .filter(models.Enrollment.agent_id == agent_id)
+        .order_by(models.Enrollment.created_at.desc())
+        .all()
+    )
+    enroll_by_quote = {}
+    for e in enroll_rows:
+        if e.quote_id and e.quote_id not in enroll_by_quote:
+            enroll_by_quote[e.quote_id] = e
+
     out = []
     for q in quotes:
         cd = q.customer_data or {}
         plans = (q.quote_data or {}).get("plans", []) if q.has_quote else []
         prices = [p.get("monthly_premium") for p in plans if isinstance(p.get("monthly_premium"), (int, float))]
-        enroll = q.enrollment_data or {}
-        applicant = enroll.get("applicant") or {}
-        plan_ctx = enroll.get("plan") or {}
+        e = enroll_by_quote.get(q.quote_id)
         out.append({
             "quote_id": q.quote_id,
             "created_at": q.created_at.isoformat() if q.created_at else None,
             "status": q.quote_status,
-            "enrollment_status": q.enrollment_status,
+            "enrollment_status": (e.status if e else q.enrollment_status),
             "zip": cd.get("zip"),
             "age": cd.get("age"),
             "sex": cd.get("sex"),
@@ -606,25 +617,25 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
             "ages_list": cd.get("ages_list") or [],
             "plan_count": len(plans),
             "min_premium": min(prices) if prices else None,
-            "applicant": {
-                "first_name": applicant.get("firstName") or applicant.get("first_name"),
-                "middle_name": applicant.get("middleName") or applicant.get("middle_name"),
-                "last_name": applicant.get("lastName") or applicant.get("last_name"),
-                "dob": applicant.get("dob"),
-                "phone": applicant.get("phone"),
-                "email": applicant.get("email"),
-                "address": applicant.get("address"),
-                "city": applicant.get("city"),
-                "state": applicant.get("state"),
-                "zip": applicant.get("zip"),
-                "ssn": applicant.get("ssn"),
-                "annual_income": applicant.get("annualIncome") or applicant.get("annual_income"),
-            } if applicant else None,
-            "plan": {
-                "plan_name": plan_ctx.get("plan_name"),
-                "carrier": plan_ctx.get("carrier"),
-                "monthly_premium": plan_ctx.get("monthly_premium"),
-            } if plan_ctx else None,
+            "applicant": ({
+                "first_name": e.first_name,
+                "middle_name": e.middle_name,
+                "last_name": e.last_name,
+                "dob": e.dob,
+                "phone": e.phone,
+                "email": e.email,
+                "address": e.address,
+                "city": e.city,
+                "state": e.state,
+                "zip": e.zip_code,
+                "ssn": e.ssn,
+                "annual_income": e.annual_income,
+            } if e else None),
+            "plan": ({
+                "plan_name": e.plan_name,
+                "carrier": e.plan_carrier,
+                "monthly_premium": float(e.monthly_premium) if e.monthly_premium is not None else None,
+            } if e else None),
         })
     return {"quotes": out}
 
@@ -634,6 +645,24 @@ class EnrollmentRequest(BaseModel):
     agent_username: Optional[str] = None
     plan: dict
     applicant: dict
+
+
+def _to_int_safe(v) -> Optional[int]:
+    if v is None or v == "":
+        return None
+    try:
+        return int(float(str(v).replace(",", "").replace("$", "")))
+    except (ValueError, TypeError):
+        return None
+
+
+def _to_decimal_safe(v):
+    if v is None or v == "":
+        return None
+    try:
+        return float(str(v).replace(",", "").replace("$", ""))
+    except (ValueError, TypeError):
+        return None
 
 
 @app.post("/api/enrollments")
@@ -652,7 +681,6 @@ def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
             agent_id = agent.id
 
     if quote is None:
-        # Standalone enrollment (no preceding quote) — create a placeholder row
         quote = models.Quote(
             customer_data={"source": "enrollment_only"},
             quote_status="enrollment",
@@ -664,17 +692,61 @@ def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(quote)
     elif agent_id and quote.agent_id is None:
-        # Backfill agent attribution if it was missing
         quote.agent_id = agent_id
 
-    quote.enrollment_data = {
-        "plan": req.plan,
-        "applicant": req.applicant,
-    }
+    a = req.applicant or {}
+    p = req.plan or {}
+
+    enrollment = models.Enrollment(
+        quote_id=quote.quote_id,
+        agent_id=agent_id or quote.agent_id,
+        first_name=a.get("firstName") or a.get("first_name"),
+        middle_name=a.get("middleName") or a.get("middle_name"),
+        last_name=a.get("lastName") or a.get("last_name"),
+        dob=a.get("dob"),
+        gender=a.get("gender"),
+        marital_status=a.get("maritalStatus") or a.get("marital_status"),
+        ssn=a.get("ssn"),
+        phone=a.get("phone"),
+        email=a.get("email"),
+        preferred_lang=a.get("preferredLang") or a.get("preferred_lang"),
+        address=a.get("address"),
+        apt=a.get("apt"),
+        city=a.get("city"),
+        state=a.get("state"),
+        zip_code=a.get("zip"),
+        mailing_same=bool(a.get("mailingSame", True)),
+        mail_address=a.get("mailAddress"),
+        mail_apt=a.get("mailApt"),
+        mail_city=a.get("mailCity"),
+        mail_state=a.get("mailState"),
+        mail_zip=a.get("mailZip"),
+        tax_status=a.get("taxStatus") or a.get("tax_status"),
+        annual_income=a.get("annualIncome") or a.get("annual_income"),
+        income_type=a.get("incomeType") or a.get("income_type"),
+        qualifying_event=a.get("qualifyingEvent") or a.get("qualifying_event"),
+        plan_id=p.get("plan_id"),
+        plan_name=p.get("plan_name"),
+        plan_carrier=p.get("carrier"),
+        plan_type=p.get("plan_type"),
+        network_type=p.get("network_type"),
+        monthly_premium=_to_decimal_safe(p.get("monthly_premium")),
+        deductible=_to_int_safe(p.get("deductible")),
+        max_out_of_pocket=_to_int_safe(p.get("max_out_of_pocket")),
+        status="submitted",
+    )
+    db.add(enrollment)
+
+    # Keep enrollment_status on the quote in sync (still useful for the existing UI logic)
     quote.enrollment_status = "submitted"
+
     db.commit()
-    db.refresh(quote)
-    return {"quote_id": quote.quote_id, "enrollment_status": quote.enrollment_status}
+    db.refresh(enrollment)
+    return {
+        "enrollment_id": enrollment.id,
+        "quote_id": quote.quote_id,
+        "enrollment_status": "submitted",
+    }
 
 
 @app.get("/api/agents/{username}")

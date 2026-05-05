@@ -450,7 +450,7 @@ const ClientsView = ({ token }: { token: string }) => {
     const [quotes, setQuotes] = useState<AgentQuote[] | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<'all' | 'enrolled' | 'quoted'>('all');
+    const [tab, setTab] = useState<'enrolled' | 'quoted'>('enrolled');
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
     useEffect(() => {
@@ -465,8 +465,7 @@ const ClientsView = ({ token }: { token: string }) => {
 
     const filtered = (quotes || []).filter(q => {
         if (tab === 'enrolled') return q.enrollment_status === 'submitted';
-        if (tab === 'quoted') return q.enrollment_status !== 'submitted' && q.status === 'quoted';
-        return true;
+        return q.enrollment_status !== 'submitted' && q.status === 'quoted';
     });
     const enrolledCount = (quotes || []).filter(q => q.enrollment_status === 'submitted').length;
     const quotedOnlyCount = (quotes || []).filter(q => q.enrollment_status !== 'submitted' && q.status === 'quoted').length;
@@ -511,7 +510,6 @@ const ClientsView = ({ token }: { token: string }) => {
 
                 <div className="mt-4 flex items-center gap-1 rounded-full bg-slate-100 p-1 w-fit">
                     {[
-                        { id: 'all', label: `全部 (${quotes?.length ?? 0})` },
                         { id: 'enrolled', label: `已申请 (${enrolledCount})` },
                         { id: 'quoted', label: `仅报价 (${quotedOnlyCount})` },
                     ].map(t => (
@@ -637,6 +635,7 @@ const Field = ({ label, value, className = '' }: { label: string; value: string 
 
 const MarketingView = ({ agent }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`;
     return (
         <div className="px-6 py-8 lg:px-10">
             <div className="max-w-3xl">
@@ -656,6 +655,42 @@ const MarketingView = ({ agent }: any) => {
                                     value={`您好，我是您的保险顾问 ${agent.full_name}。点击此链接获取免费的健康保险报价：${url}`}
                                 />
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="mt-4">
+                    <CardContent className="pt-6">
+                        <h3 className="font-semibold mb-3">分享海报</h3>
+                        <p className="text-xs text-slate-500 mb-4">下载二维码海报，方便在朋友圈、社交媒体或线下宣传。</p>
+                        <div className="flex items-start gap-4">
+                            <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
+                                <img src={qrUrl} alt="专属链接二维码" className="w-32 h-32" />
+                            </div>
+                            <div className="flex-1 space-y-2 text-sm">
+                                <p className="text-slate-700">扫描二维码可直接打开您的报价页面。</p>
+                                <p className="text-xs text-slate-500 break-all">{url}</p>
+                                <div className="flex gap-2 pt-2">
+                                    <a
+                                        href={qrUrl}
+                                        download={`juicypolicy-${agent.username}-qr.png`}
+                                        className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                                    >
+                                        下载二维码
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="mt-4">
+                    <CardContent className="pt-6">
+                        <h3 className="font-semibold mb-3">分享视频</h3>
+                        <p className="text-xs text-slate-500 mb-4">短视频素材，方便在抖音、视频号或微信群中推广。</p>
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center">
+                            <p className="text-sm text-slate-700 font-medium">视频素材即将上线</p>
+                            <p className="text-xs text-slate-500 mt-1.5">我们正在制作专业的健康保险介绍视频，敬请期待。</p>
                         </div>
                     </CardContent>
                 </Card>
