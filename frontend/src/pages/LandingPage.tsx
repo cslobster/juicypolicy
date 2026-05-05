@@ -14,10 +14,10 @@ const LandingPage: React.FC = () => {
                 <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 py-14 lg:grid-cols-2 lg:gap-16 lg:py-24">
                     <div>
                         <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-                            欢迎来到鲜橙保险
+                            为您找到合适的<br />健康保险方案。
                         </h1>
                         <p className="mt-5 max-w-md text-lg leading-7 text-slate-600">
-                            我们提供最优质的健康保险和人寿保险。
+                            填写几个基本信息，查看您所在县所有可投保的方案。
                         </p>
                         <div className="mt-8 flex flex-wrap items-center gap-3">
                             <Button
@@ -25,7 +25,7 @@ const LandingPage: React.FC = () => {
                                 onClick={() => navigate('/agent/sisi')}
                                 className="h-12 rounded-lg bg-[#ff6b2c] px-6 text-base text-white hover:bg-[#f05f22] shadow-sm"
                             >
-                                开始您的保险之旅
+                                开始报价
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </div>
