@@ -6,8 +6,8 @@ import Header from './components/Header';
 import ChatInterface from './components/ChatInterface';
 import LandingPage from './pages/LandingPage';
 import QuotePage from './pages/QuotePage';
-import LoginPage from './pages/LoginPage';
 import AgentsPage from './pages/AgentsPage';
+import AgentsMarketingPage from './pages/AgentsMarketingPage';
 import AgentQuotePage from './pages/AgentQuotePage';
 import AboutPage from './pages/AboutPage';
 
@@ -32,8 +32,8 @@ function App() {
           <Routes>
             <Route path="/" element={<StandardLayout><LandingPage /></StandardLayout>} />
             <Route path="/quote/:type" element={<StandardLayout><QuotePageWrapper /></StandardLayout>} />
-            <Route path="/login" element={<StandardLayout><LoginPage /></StandardLayout>} />
-            <Route path="/agents" element={<StandardLayout><AgentsPage /></StandardLayout>} />
+            <Route path="/login" element={<StandardLayout><AgentsPage /></StandardLayout>} />
+            <Route path="/agents" element={<StandardLayout><AgentsMarketingPage /></StandardLayout>} />
             <Route path="/about" element={<StandardLayout><AboutPage /></StandardLayout>} />
             {/* Per-agent quote site (under /agent so it can't collide with named routes) */}
             <Route path="/agent/:agent" element={<AgentQuotePage />} />
