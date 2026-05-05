@@ -4,12 +4,12 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 
 const features = [
-    { icon: FileText, title: '保险报价', desc: '一键调用 HealthSherpa 实时数据，几秒内为客户生成精准的健康保险方案。' },
-    { icon: UserCircle, title: '客户管理', desc: '通过您的专属链接收集客户线索，自动归类已申请、VIP 客户和仅报价客户。' },
-    { icon: Megaphone, title: '市场推广', desc: '一键生成专属二维码海报、分享文案和短视频，方便在朋友圈、抖音、视频号推广。' },
-    { icon: PenLine, title: '文案制作', desc: '内置中英双语文案模板，针对不同客户群体快速生成转化率高的营销文案。' },
-    { icon: Settings, title: '佣金管理', desc: '透明跟踪每一笔佣金、对账单和提现记录，按月生成报表。' },
-    { icon: GraduationCap, title: '行业培训', desc: '定期发布产品讲解、销售技巧和合规培训视频，助您持续提升专业能力。' },
+    { icon: FileText, title: '保险报价', desc: '实时报价，几秒生成方案。' },
+    { icon: UserCircle, title: '客户管理', desc: '客户线索自动归类。' },
+    { icon: Megaphone, title: '市场推广', desc: '海报、文案、短视频一键生成。' },
+    { icon: PenLine, title: '文案制作', desc: '中英双语营销文案模板。' },
+    { icon: Settings, title: '佣金管理', desc: '跟踪佣金、对账与提现。' },
+    { icon: GraduationCap, title: '行业培训', desc: '产品、销售与合规培训。' },
 ];
 
 const AgentsMarketingPage = () => {
@@ -63,22 +63,6 @@ const AgentsMarketingPage = () => {
                 </div>
             </section>
 
-            <section className="px-4 pb-16 sm:px-6 lg:px-8 lg:pb-24">
-                <div className="mx-auto max-w-3xl rounded-2xl bg-[#103b35] px-6 py-10 text-white sm:px-10">
-                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h3 className="text-xl font-bold">已经是经纪人？</h3>
-                            <p className="mt-1.5 text-sm text-white/75">登录管理您的客户、报价和佣金。</p>
-                        </div>
-                        <Link to="/login">
-                            <Button size="lg" className="rounded-full bg-white px-6 text-[#103b35] hover:bg-orange-50">
-                                登录后台
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </section>
         </div>
     );
 };
