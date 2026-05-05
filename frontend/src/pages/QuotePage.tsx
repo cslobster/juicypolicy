@@ -921,7 +921,26 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string, 
     });
     const [uploadedFiles, setUploadedFiles] = useState<{ name: string; preview: string }[]>([]);
     const idInputRef = useRef<HTMLInputElement>(null);
+    const widgetRootRef = useRef<HTMLDivElement>(null);
     const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+    // On mount, scroll the form into view at the top of its scroll container
+    // (so users — especially on mobile — land on 个人信息, not at the bottom).
+    useEffect(() => {
+        const el = widgetRootRef.current;
+        if (!el) return;
+        // Find nearest scrollable ancestor and scroll it so the widget's top is visible
+        let parent: HTMLElement | null = el.parentElement;
+        while (parent) {
+            const overflow = window.getComputedStyle(parent).overflowY;
+            if (overflow === 'auto' || overflow === 'scroll') {
+                parent.scrollTo({ top: el.offsetTop - parent.offsetTop, behavior: 'smooth' });
+                return;
+            }
+            parent = parent.parentElement;
+        }
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, []);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -944,6 +963,7 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string, 
     const selectClass = "flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
     return (
+        <div ref={widgetRootRef}>
         <Card className="animate-fade-in mt-4">
             <CardContent className="pt-4 space-y-5">
                 <div className="text-xs text-muted-foreground p-2 bg-blue-50 rounded">
@@ -1213,6 +1233,7 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string, 
                 </div>
             </CardContent>
         </Card>
+        </div>
     );
 };
 
