@@ -1564,9 +1564,10 @@ const PaymentCheckoutWidget: React.FC<{ plan: QuotePlan, onSubmit: (text: string
 
 interface QuotePageProps {
     forceType?: string;
+    agentUsername?: string;
 }
 
-const QuotePage: React.FC<QuotePageProps> = ({ forceType }) => {
+const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
     const { type: typeParam = 'unknown' } = useParams();
     const effectiveType = forceType || typeParam;
 
@@ -1877,6 +1878,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType }) => {
                     household_size: data.household_size,
                     ages_list: data.ages_list || [],
                     uses_tobacco: !!data.uses_tobacco,
+                    agent_username: agentUsername,
                 }),
             });
 

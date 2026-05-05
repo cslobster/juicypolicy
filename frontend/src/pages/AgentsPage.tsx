@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -214,7 +214,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
             {/* Main */}
             <main className="flex-1 overflow-y-auto pt-12 md:pt-0">
                 {view === 'home' && <HomeView agent={agent} />}
-                {view === 'clients' && <ClientsView />}
+                {view === 'clients' && <ClientsView token={token} />}
                 {view === 'marketing' && <MarketingView agent={agent} token={token} onUpdate={onUpdate} />}
             </main>
         </div>
@@ -275,20 +275,127 @@ const ChecklistRow = ({ done, label }: { done: boolean; label: string }) => (
     </div>
 );
 
-const ClientsView = () => {
+interface AgentQuote {
+    quote_id: number;
+    created_at: string | null;
+    status: string;
+    zip: string | null;
+    age: number | null;
+    sex: string | null;
+    income: string | null;
+    household_size: number | null;
+    ages_list: number[];
+    plan_count: number;
+    min_premium: number | null;
+}
+
+const ClientsView = ({ token }: { token: string }) => {
+    const [quotes, setQuotes] = useState<AgentQuote[] | null>(null);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        fetch(`${API_BASE}/api/agents/me/quotes`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
+            .then(data => { if (!cancelled) { setQuotes(data.quotes); setLoading(false); } })
+            .catch(err => { if (!cancelled) { setError(String(err)); setLoading(false); } });
+        return () => { cancelled = true; };
+    }, [token]);
+
+    const fmtDate = (iso: string | null) => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    const sexLabel = (s: string | null) => s === 'Male' ? '男' : s === 'Female' ? '女' : '—';
+    const statusBadge = (s: string) => {
+        const map: Record<string, { bg: string; text: string; label: string }> = {
+            quoted: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: '已报价' },
+            error: { bg: 'bg-red-100', text: 'text-red-800', label: '失败' },
+            scraping: { bg: 'bg-amber-100', text: 'text-amber-800', label: '处理中' },
+            pending: { bg: 'bg-slate-100', text: 'text-slate-700', label: '等待中' },
+        };
+        const cfg = map[s] || { bg: 'bg-slate-100', text: 'text-slate-700', label: s };
+        return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.bg} ${cfg.text}`}>{cfg.label}</span>;
+    };
+
     return (
         <div className="px-6 py-8 lg:px-10">
-            <div className="max-w-4xl">
-                <h1 className="text-2xl font-bold text-slate-900">客户</h1>
-                <p className="text-sm text-slate-500 mt-2">查看通过您的链接获取报价的客户。</p>
-
-                <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-                    <UserCircle size={36} className="mx-auto text-slate-300" />
-                    <h3 className="mt-4 text-base font-semibold text-slate-900">暂无客户</h3>
-                    <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
-                        将您的专属报价链接分享给客户后，他们的报价请求会显示在这里。
-                    </p>
+            <div className="max-w-5xl">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">客户</h1>
+                        <p className="text-sm text-slate-500 mt-2">通过您的专属链接提交报价的客户。</p>
+                    </div>
+                    {quotes && quotes.length > 0 && (
+                        <span className="text-sm text-slate-600">共 {quotes.length} 条</span>
+                    )}
                 </div>
+
+                {loading && (
+                    <div className="mt-8 text-sm text-slate-500">加载中...</div>
+                )}
+
+                {error && (
+                    <div className="mt-8 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        加载失败: {error}
+                    </div>
+                )}
+
+                {!loading && quotes && quotes.length === 0 && (
+                    <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+                        <UserCircle size={36} className="mx-auto text-slate-300" />
+                        <h3 className="mt-4 text-base font-semibold text-slate-900">暂无客户</h3>
+                        <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+                            将您的专属报价链接分享给客户后，他们的报价请求会显示在这里。
+                        </p>
+                    </div>
+                )}
+
+                {quotes && quotes.length > 0 && (
+                    <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-medium">日期</th>
+                                    <th className="px-4 py-3 text-left font-medium">状态</th>
+                                    <th className="px-4 py-3 text-left font-medium">邮编</th>
+                                    <th className="px-4 py-3 text-left font-medium">主申</th>
+                                    <th className="px-4 py-3 text-left font-medium">家庭</th>
+                                    <th className="px-4 py-3 text-left font-medium">年收入</th>
+                                    <th className="px-4 py-3 text-right font-medium">方案数</th>
+                                    <th className="px-4 py-3 text-right font-medium">最低保费</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {quotes.map(q => (
+                                    <tr key={q.quote_id} className="hover:bg-slate-50/60">
+                                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtDate(q.created_at)}</td>
+                                        <td className="px-4 py-3">{statusBadge(q.status)}</td>
+                                        <td className="px-4 py-3 text-slate-700">{q.zip || '—'}</td>
+                                        <td className="px-4 py-3 text-slate-700">
+                                            {q.age ?? '—'} <span className="text-slate-400">岁</span>
+                                            {q.sex && <span className="text-slate-400 ml-1">·</span>} {sexLabel(q.sex)}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-700">
+                                            {q.household_size ?? 1} 人
+                                            {q.ages_list.length > 0 && (
+                                                <span className="text-xs text-slate-500 ml-1">({q.ages_list.join(', ')})</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-700">{q.income ? `$${Number(q.income).toLocaleString()}` : '—'}</td>
+                                        <td className="px-4 py-3 text-right text-slate-700">{q.plan_count}</td>
+                                        <td className="px-4 py-3 text-right text-slate-900 font-medium">
+                                            {q.min_premium != null ? `$${q.min_premium.toFixed(0)}/月` : '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     );

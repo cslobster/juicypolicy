@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from .database import Base
@@ -13,6 +13,7 @@ class Quote(Base):
     quote_status = Column(String(20), default="pending")  # pending, scraping, converting, quoted, error
     status_message = Column(String(200), default="Waiting for worker...")
     has_quote = Column(Boolean, default=False)
+    agent_id = Column(Integer, ForeignKey("jp_agents.id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -130,17 +130,31 @@ class HealthSherpaQuoteRequest(BaseModel):
     ages_list: Optional[List[int]] = None
     uses_tobacco: bool = False
     plan_year: int = 2026
+    agent_username: Optional[str] = None
 
 
 @app.post("/api/quote_v2", response_model=QuoteStatusResponse)
 def create_quote_v2(req: HealthSherpaQuoteRequest, db: Session = Depends(get_db)):
     """Create + fulfill a health quote synchronously via HealthSherpa One API."""
     customer_data = req.model_dump()
+    agent_id: Optional[int] = None
+    if req.agent_username:
+        slug = req.agent_username.strip().lower()
+        from sqlalchemy import func as _func
+        agent = (
+            db.query(models.Agent)
+            .filter(_func.btrim(models.Agent.username) == slug)
+            .first()
+        )
+        if agent:
+            agent_id = agent.id
+
     db_quote = models.Quote(
         customer_data=customer_data,
         quote_status="scraping",
         status_message="Calling HealthSherpa...",
         has_quote=False,
+        agent_id=agent_id,
     )
     db.add(db_quote)
     db.commit()
@@ -531,6 +545,37 @@ def agent_update_me(
     db.commit()
     db.refresh(agent)
     return _agent_to_dict(agent)
+
+
+@app.get("/api/agents/me/quotes")
+def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(get_db)):
+    """Quotes submitted via this agent's per-agent URL."""
+    quotes = (
+        db.query(models.Quote)
+        .filter(models.Quote.agent_id == agent_id)
+        .order_by(models.Quote.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    out = []
+    for q in quotes:
+        cd = q.customer_data or {}
+        plans = (q.quote_data or {}).get("plans", []) if q.has_quote else []
+        prices = [p.get("monthly_premium") for p in plans if isinstance(p.get("monthly_premium"), (int, float))]
+        out.append({
+            "quote_id": q.quote_id,
+            "created_at": q.created_at.isoformat() if q.created_at else None,
+            "status": q.quote_status,
+            "zip": cd.get("zip"),
+            "age": cd.get("age"),
+            "sex": cd.get("sex"),
+            "income": cd.get("income"),
+            "household_size": cd.get("household_size"),
+            "ages_list": cd.get("ages_list") or [],
+            "plan_count": len(plans),
+            "min_premium": min(prices) if prices else None,
+        })
+    return {"quotes": out}
 
 
 @app.get("/api/agents/{username}")

@@ -37,7 +37,7 @@ const AgentQuotePage = () => {
         <div className="flex flex-col h-screen overflow-hidden">
             <AgentHeader agent={agent} loaded={agentLoaded} />
             <main className="flex-1 overflow-hidden">
-                <QuotePage forceType="health" />
+                <QuotePage forceType="health" agentUsername={agentSlug} />
             </main>
             <ChatInterface />
         </div>
