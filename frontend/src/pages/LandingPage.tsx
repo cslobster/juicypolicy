@@ -16,9 +16,9 @@ const LandingPage: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col overflow-y-auto bg-white text-slate-900">
-            {/* Hero — uses available height between header and features (lg+). */}
-            <section className="flex-1 px-4 sm:px-6 lg:flex lg:items-center lg:px-8 lg:min-h-0">
-                <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 py-8 sm:gap-10 sm:py-10 lg:grid-cols-2 lg:gap-12 lg:py-0">
+            {/* Hero (top half on lg+) */}
+            <section className="lg:flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:flex lg:items-center lg:px-8 lg:py-0 lg:min-h-0">
+                <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 sm:gap-10 lg:grid-cols-2 lg:gap-12">
                     <div>
                         <h1 className="text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl lg:text-5xl">
                             为您找到合适的<br />健康保险方案。
@@ -41,16 +41,16 @@ const LandingPage: React.FC = () => {
                         <img
                             src={HERO_IMAGE}
                             alt="鲜橙保险插画"
-                            className="w-full max-h-[260px] object-contain sm:max-h-[300px] lg:max-h-[360px]"
+                            className="w-full max-h-[260px] object-contain sm:max-h-[300px] lg:max-h-[340px]"
                             loading="lazy"
                         />
                     </div>
                 </div>
             </section>
 
-            {/* Features */}
-            <section className="bg-slate-50 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-                <div className="mx-auto max-w-5xl">
+            {/* Features (bottom half on lg+) */}
+            <section className="bg-slate-50 px-4 py-8 sm:px-6 sm:py-10 lg:flex lg:flex-1 lg:items-center lg:px-8 lg:py-0 lg:min-h-0">
+                <div className="mx-auto w-full max-w-5xl">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">为什么选择我们</h2>
                         <p className="mt-1.5 text-sm text-slate-600 sm:text-base">我们的优势</p>
