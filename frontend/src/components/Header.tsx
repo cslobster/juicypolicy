@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Citrus, Home, ShieldPlus, Users, Info, LogOut, Menu, X } from 'lucide-react';
+import { Citrus, Home, ShieldPlus, Users, Info, LogOut, Menu, X, LayoutDashboard } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useAuth } from '../contexts/AuthContext';
+import { useAgentAuth } from '../contexts/AgentAuthContext';
 
 const navItems = [
     { path: '/', label: '首页', icon: Home },
@@ -11,11 +11,27 @@ const navItems = [
     { path: '/about', label: '关于我们', icon: Info },
 ];
 
+const initials = (name: string) =>
+    name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || name.slice(0, 2).toUpperCase();
+
 const Header = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { agent, logout } = useAgentAuth();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
+    const profileRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!profileOpen) return;
+        const onClick = (e: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+                setProfileOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onClick);
+        return () => document.removeEventListener('mousedown', onClick);
+    }, [profileOpen]);
 
     const isActive = (path: string) => {
         if (path === '/') return location.pathname === '/';
@@ -69,20 +85,41 @@ const Header = () => {
 
                 {/* Right side */}
                 <div className="flex items-center gap-3">
-                    {user ? (
-                        <>
-                            <span className="hidden sm:inline text-sm font-medium text-slate-700">{user.email}</span>
+                    {agent ? (
+                        <div className="relative" ref={profileRef}>
                             <button
-                                onClick={() => { logout(); navigate('/'); }}
-                                className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => setProfileOpen(v => !v)}
+                                aria-label={`已登录：${agent.full_name}`}
+                                className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors"
                             >
-                                <LogOut className="h-3.5 w-3.5" />
-                                退出
+                                {initials(agent.full_name)}
                             </button>
-                        </>
+                            {profileOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 py-2">
+                                    <div className="px-4 py-2 border-b border-slate-100">
+                                        <p className="text-sm font-semibold text-slate-900 truncate">{agent.full_name}</p>
+                                        <p className="text-xs text-slate-500 truncate">@{agent.username}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => { setProfileOpen(false); navigate('/login'); }}
+                                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                    >
+                                        <LayoutDashboard className="h-4 w-4" />
+                                        代理后台
+                                    </button>
+                                    <button
+                                        onClick={() => { logout(); setProfileOpen(false); navigate('/'); }}
+                                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                    >
+                                        <LogOut className="h-4 w-4" />
+                                        退出登录
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                            登录
+                            代理登陆
                         </Link>
                     )}
                 </div>
@@ -113,9 +150,14 @@ const Header = () => {
                             );
                         })}
                     </div>
-                    {user ? (
-                        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between px-3">
-                            <span className="text-sm text-slate-600 truncate">{user.email}</span>
+                    {agent ? (
+                        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 px-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-xs font-semibold text-white">
+                                    {initials(agent.full_name)}
+                                </div>
+                                <span className="text-sm text-slate-700 truncate">{agent.full_name}</span>
+                            </div>
                             <button
                                 onClick={() => { logout(); navigate('/'); setMobileOpen(false); }}
                                 className="text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -130,7 +172,7 @@ const Header = () => {
                                 onClick={() => setMobileOpen(false)}
                                 className="text-sm font-medium text-muted-foreground hover:text-foreground"
                             >
-                                登录
+                                代理登陆
                             </Link>
                         </div>
                     )}
