@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText } from 'lucide-react';
+import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -129,14 +130,15 @@ const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void })
     );
 };
 
-type DashboardView = 'home' | 'clients' | 'marketing' | 'copy' | 'tools' | 'training';
+type DashboardView = 'home' | 'quote' | 'clients' | 'marketing' | 'copy' | 'tools' | 'training';
 
 const NAV_ITEMS: { id: DashboardView; label: string; icon: any }[] = [
     { id: 'home', label: '首页', icon: Home },
+    { id: 'quote', label: '保险报价', icon: FileText },
     { id: 'clients', label: '客户管理', icon: UserCircle },
     { id: 'marketing', label: '市场推广', icon: Megaphone },
     { id: 'copy', label: '文案制作', icon: PenLine },
-    { id: 'tools', label: '用脚管理', icon: Settings },
+    { id: 'tools', label: '佣金管理', icon: Settings },
     { id: 'training', label: '行业培训', icon: GraduationCap },
 ];
 
@@ -217,10 +219,11 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
             {/* Main */}
             <main className="flex-1 overflow-y-auto pt-12 md:pt-0">
                 {view === 'home' && <HomeView agent={agent} token={token} onUpdate={onUpdate} />}
+                {view === 'quote' && <QuoteView agent={agent} />}
                 {view === 'clients' && <ClientsView token={token} />}
                 {view === 'marketing' && <MarketingView agent={agent} />}
                 {view === 'copy' && <ComingSoonView title="文案制作" subtitle="一键生成微信、抖音、朋友圈文案模板。" icon={PenLine} />}
-                {view === 'tools' && <ComingSoonView title="用脚管理" subtitle="账号设置、密码、权限和数据导出。" icon={Settings} />}
+                {view === 'tools' && <ComingSoonView title="佣金管理" subtitle="跟踪每个客户的佣金、对账单和提现记录。" icon={Settings} />}
                 {view === 'training' && <ComingSoonView title="行业培训" subtitle="定期发布的产品介绍和销售培训课程。" icon={GraduationCap} />}
             </main>
         </div>
@@ -456,7 +459,8 @@ const ClientsView = ({ token }: { token: string }) => {
     const [quotes, setQuotes] = useState<AgentQuote[] | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<'enrolled' | 'quoted'>('enrolled');
+    const [tab, setTab] = useState<'enrolled' | 'vip' | 'quoted'>('enrolled');
+    const VIP_INCOME_THRESHOLD = 100_000;
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
     useEffect(() => {
@@ -469,11 +473,20 @@ const ClientsView = ({ token }: { token: string }) => {
         return () => { cancelled = true; };
     }, [token]);
 
+    const isVip = (q: AgentQuote) => {
+        if (q.enrollment_status !== 'submitted') return false;
+        const inc = q.applicant?.annual_income || q.income;
+        if (!inc) return false;
+        const num = Number(String(inc).replace(/[$,\s]/g, ''));
+        return Number.isFinite(num) && num >= VIP_INCOME_THRESHOLD;
+    };
     const filtered = (quotes || []).filter(q => {
         if (tab === 'enrolled') return q.enrollment_status === 'submitted';
+        if (tab === 'vip') return isVip(q);
         return q.enrollment_status !== 'submitted' && q.status === 'quoted';
     });
     const enrolledCount = (quotes || []).filter(q => q.enrollment_status === 'submitted').length;
+    const vipCount = (quotes || []).filter(isVip).length;
     const quotedOnlyCount = (quotes || []).filter(q => q.enrollment_status !== 'submitted' && q.status === 'quoted').length;
 
     const fmtDate = (iso: string | null) => {
@@ -517,6 +530,7 @@ const ClientsView = ({ token }: { token: string }) => {
                 <div className="mt-4 flex items-center gap-1 rounded-full bg-slate-100 p-1 w-fit">
                     {[
                         { id: 'enrolled', label: `已申请 (${enrolledCount})` },
+                        { id: 'vip', label: `VIP客户 (${vipCount})` },
                         { id: 'quoted', label: `仅报价 (${quotedOnlyCount})` },
                     ].map(t => (
                         <button
@@ -543,10 +557,12 @@ const ClientsView = ({ token }: { token: string }) => {
                     <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                         <UserCircle size={36} className="mx-auto text-slate-300" />
                         <h3 className="mt-4 text-base font-semibold text-slate-900">
-                            {tab === 'enrolled' ? '暂无投保申请' : tab === 'quoted' ? '暂无仅报价客户' : '暂无客户'}
+                            {tab === 'enrolled' ? '暂无投保申请' : tab === 'vip' ? '暂无VIP客户' : tab === 'quoted' ? '暂无仅报价客户' : '暂无客户'}
                         </h3>
                         <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
-                            将您的专属报价链接分享给客户后，他们的请求会显示在这里。
+                            {tab === 'vip'
+                                ? `年收入 ≥ $${VIP_INCOME_THRESHOLD.toLocaleString()} 的已投保客户会显示在这里。`
+                                : '将您的专属报价链接分享给客户后，他们的请求会显示在这里。'}
                         </p>
                     </div>
                 )}
@@ -581,6 +597,11 @@ const ClientsView = ({ token }: { token: string }) => {
                                             <td className="px-4 py-3">{statusBadge(q)}</td>
                                             <td className="px-4 py-3 text-slate-900 font-medium">
                                                 {customerName}
+                                                {isVip(q) && (
+                                                    <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                                        VIP
+                                                    </span>
+                                                )}
                                                 <span className="text-xs text-slate-500 ml-1.5 font-normal">
                                                     {q.age ?? '—'}岁{q.sex && ` · ${sexLabel(q.sex)}`}
                                                 </span>
@@ -704,6 +725,18 @@ const MarketingView = ({ agent }: any) => {
         </div>
     );
 };
+
+const QuoteView = ({ agent }: any) => (
+    <div className="h-full flex flex-col">
+        <div className="px-6 py-5 lg:px-10 border-b border-slate-200 bg-white shrink-0">
+            <h1 className="text-xl font-bold text-slate-900">保险报价</h1>
+            <p className="text-xs text-slate-500 mt-1">为客户即时生成健康保险报价。生成的报价将自动归入您的客户管理。</p>
+        </div>
+        <div className="flex-1 overflow-hidden">
+            <QuotePage forceType="health" agentUsername={agent.username} />
+        </div>
+    </div>
+);
 
 const ComingSoonView = ({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: any }) => (
     <div className="px-6 py-8 lg:px-10">
