@@ -15,14 +15,6 @@ const CARRIERS = [
 
 const ALT_BLOCKS = [
     {
-        eyebrow: 'AI 顾问',
-        title: '不懂保险术语？AI 帮您讲清楚。',
-        body: '问"哪个计划最划算"、"门诊费多少"、"HSA 有什么用"，AI 顾问会结合您的报价数据用中文给出答案。',
-        bullets: ['计划对比', '费用预估', '术语解释'],
-        cta: { label: '查看示例', to: '/agent/sisi' },
-        side: 'left' as const,
-    },
-    {
         eyebrow: '经纪后台',
         title: '为经纪人量身打造的展业工具。',
         body: '专属报价 URL、客户线索归类、分享海报、佣金管理——所有展业需要的工具都在一个后台里。',
@@ -30,12 +22,6 @@ const ALT_BLOCKS = [
         cta: { label: '加入经纪网络', to: '/agents' },
         side: 'right' as const,
     },
-];
-
-const METRICS = [
-    { value: '30+', label: '可选保险计划' },
-    { value: '5+', label: '主流保险公司' },
-    { value: '<10s', label: '报价响应时间' },
 ];
 
 const LandingPage: React.FC = () => {
@@ -136,37 +122,7 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 4. Metrics band */}
-            <section className="border-y border-slate-100 bg-slate-50/60 px-4 py-12 sm:px-6 lg:px-8">
-                <div className="mx-auto grid max-w-4xl grid-cols-3 gap-6 text-center">
-                    {METRICS.map((m) => (
-                        <div key={m.label}>
-                            <p className="text-3xl font-bold tracking-tight sm:text-4xl">{m.value}</p>
-                            <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">{m.label}</p>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* 5. Final CTA */}
-            <section className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-                <div className="mx-auto max-w-3xl text-center">
-                    <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">现在就来获取您的报价。</h2>
-                    <p className="mt-3 text-base text-slate-600">几秒内查看您所在县所有可投保的方案。</p>
-                    <div className="mt-7">
-                        <Button
-                            size="lg"
-                            onClick={() => navigate('/agent/sisi')}
-                            className="h-12 rounded-full bg-[#ff6b2c] px-7 text-base text-white hover:bg-[#f05f22]"
-                        >
-                            开始报价
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </section>
-
-            {/* 6. Footer */}
+            {/* Footer */}
             <footer className="border-t border-slate-200 bg-slate-950 text-slate-400">
                 <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
                     <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
