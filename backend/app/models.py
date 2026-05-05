@@ -32,6 +32,7 @@ class Agent(Base):
     wechat_id = Column(String(80), nullable=True)
     telephone = Column(String(40), nullable=True)
     wechat_qr = Column(String, nullable=True)  # data URL (base64) of WeChat QR image
+    role = Column(String(20), nullable=False, default="normal", index=True)  # "admin" | "normal"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -470,7 +470,15 @@ def _agent_to_dict(agent: models.Agent) -> dict:
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
         "wechat_qr": agent.wechat_qr,
+        "role": agent.role or "normal",
     }
+
+
+def require_admin(agent_id: int = Depends(require_agent), db: Session = Depends(get_db)) -> models.Agent:
+    agent = get_current_agent(db, agent_id)
+    if (agent.role or "normal") != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return agent
 
 
 @app.post("/api/agents/register")
@@ -753,6 +761,148 @@ def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
         "quote_id": quote.quote_id,
         "enrollment_status": "submitted",
     }
+
+
+# --- Admin endpoints (role == "admin" only) ---
+
+
+class AdminCreateAgentRequest(BaseModel):
+    username: str
+    email: str
+    full_name: str
+    password: Optional[str] = None
+    role: Optional[str] = "normal"
+    wechat_id: Optional[str] = None
+    telephone: Optional[str] = None
+
+
+class AdminUpdateAgentRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    new_password: Optional[str] = None
+    wechat_id: Optional[str] = None
+    telephone: Optional[str] = None
+
+
+@app.get("/api/admin/agents")
+def admin_list_agents(_admin: models.Agent = Depends(require_admin), db: Session = Depends(get_db)):
+    rows = db.query(models.Agent).order_by(models.Agent.created_at.desc()).all()
+    return {"agents": [_agent_to_dict(a) for a in rows]}
+
+
+@app.post("/api/admin/agents")
+def admin_create_agent(
+    req: AdminCreateAgentRequest,
+    _admin: models.Agent = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    username = req.username.strip().lower()
+    if not re.match(USERNAME_PATTERN, username):
+        raise HTTPException(status_code=400, detail="用户名只能包含字母、数字、下划线，长度3-40")
+    if username in RESERVED_USERNAMES:
+        raise HTTPException(status_code=400, detail="该用户名已被保留")
+    email = req.email.strip().lower()
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="邮箱格式无效")
+    if not req.full_name.strip():
+        raise HTTPException(status_code=400, detail="姓名不能为空")
+    role = (req.role or "normal").lower()
+    if role not in ("admin", "normal"):
+        raise HTTPException(status_code=400, detail="无效的角色")
+    password = req.password or DEFAULT_AGENT_PASSWORD
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="密码至少需要 8 个字符")
+
+    existing = (
+        db.query(models.Agent)
+        .filter((models.Agent.username == username) | (models.Agent.email == email))
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="用户名或邮箱已被注册")
+
+    digest, salt = hash_password(password)
+    agent = models.Agent(
+        username=username,
+        email=email,
+        full_name=req.full_name.strip(),
+        hashed_password=digest,
+        salt=salt,
+        wechat_id=(req.wechat_id or "").strip() or None,
+        telephone=(req.telephone or "").strip() or None,
+        role=role,
+    )
+    db.add(agent)
+    db.commit()
+    db.refresh(agent)
+    return {"agent": _agent_to_dict(agent), "initial_password": password}
+
+
+@app.patch("/api/admin/agents/{agent_id}")
+def admin_update_agent(
+    agent_id: int,
+    req: AdminUpdateAgentRequest,
+    admin: models.Agent = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="未找到此经纪")
+
+    if req.full_name is not None:
+        if not req.full_name.strip():
+            raise HTTPException(status_code=400, detail="姓名不能为空")
+        target.full_name = req.full_name.strip()
+    if req.email is not None:
+        new_email = req.email.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", new_email):
+            raise HTTPException(status_code=400, detail="邮箱格式无效")
+        if new_email != target.email:
+            taken = db.query(models.Agent).filter(
+                models.Agent.email == new_email,
+                models.Agent.id != target.id,
+            ).first()
+            if taken:
+                raise HTTPException(status_code=409, detail="该邮箱已被注册")
+            target.email = new_email
+    if req.role is not None:
+        role = req.role.lower()
+        if role not in ("admin", "normal"):
+            raise HTTPException(status_code=400, detail="无效的角色")
+        if target.id == admin.id and role != "admin":
+            raise HTTPException(status_code=400, detail="不能取消自己的管理员权限")
+        target.role = role
+    if req.new_password is not None and req.new_password.strip():
+        if len(req.new_password) < 8:
+            raise HTTPException(status_code=400, detail="密码至少需要 8 个字符")
+        digest, salt = hash_password(req.new_password)
+        target.hashed_password = digest
+        target.salt = salt
+    if req.wechat_id is not None:
+        target.wechat_id = req.wechat_id.strip() or None
+    if req.telephone is not None:
+        target.telephone = req.telephone.strip() or None
+
+    db.commit()
+    db.refresh(target)
+    return _agent_to_dict(target)
+
+
+@app.post("/api/admin/agents/{agent_id}/reset-password")
+def admin_reset_password(
+    agent_id: int,
+    _admin: models.Agent = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="未找到此经纪")
+    digest, salt = hash_password(DEFAULT_AGENT_PASSWORD)
+    target.hashed_password = digest
+    target.salt = salt
+    db.commit()
+    return {"reset_password": DEFAULT_AGENT_PASSWORD, "agent": _agent_to_dict(target)}
 
 
 @app.get("/api/agents/{username}")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -130,9 +130,9 @@ const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void })
     );
 };
 
-type DashboardView = 'home' | 'quote' | 'clients' | 'marketing' | 'copy' | 'tools' | 'training';
+type DashboardView = 'home' | 'quote' | 'clients' | 'marketing' | 'copy' | 'tools' | 'training' | 'admin';
 
-const NAV_ITEMS: { id: DashboardView; label: string; icon: any }[] = [
+const baseNavItems: { id: DashboardView; label: string; icon: any }[] = [
     { id: 'home', label: '首页', icon: Home },
     { id: 'quote', label: '保险报价', icon: FileText },
     { id: 'clients', label: '客户管理', icon: UserCircle },
@@ -142,11 +142,14 @@ const NAV_ITEMS: { id: DashboardView; label: string; icon: any }[] = [
     { id: 'training', label: '行业培训', icon: GraduationCap },
 ];
 
+const adminNavItem = { id: 'admin' as DashboardView, label: '经纪管理', icon: ShieldCheck };
+
 const initials = (name: string) =>
     name.split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || name.slice(0, 2).toUpperCase();
 
 const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
     const [view, setView] = useState<DashboardView>('home');
+    const NAV_ITEMS = agent?.role === 'admin' ? [...baseNavItems, adminNavItem] : baseNavItems;
 
     return (
         <div className="flex h-[calc(100vh-4rem)] bg-slate-50">
@@ -225,6 +228,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
                 {view === 'copy' && <ComingSoonView title="文案制作" subtitle="一键生成微信、抖音、朋友圈文案模板。" icon={PenLine} />}
                 {view === 'tools' && <ComingSoonView title="佣金管理" subtitle="跟踪每个客户的佣金、对账单和提现记录。" icon={Settings} />}
                 {view === 'training' && <ComingSoonView title="行业培训" subtitle="定期发布的产品介绍和销售培训课程。" icon={GraduationCap} />}
+                {view === 'admin' && agent?.role === 'admin' && <AdminAgentsView token={token} currentAgentId={agent.id} />}
             </main>
         </div>
     );
@@ -753,5 +757,220 @@ const ComingSoonView = ({ title, subtitle, icon: Icon }: { title: string; subtit
         </div>
     </div>
 );
+
+interface AdminAgentRow {
+    id: number;
+    username: string;
+    email: string;
+    full_name: string;
+    role: 'admin' | 'normal';
+    telephone: string | null;
+    wechat_id: string | null;
+}
+
+const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgentId: number }) => {
+    const [agents, setAgents] = useState<AdminAgentRow[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [showCreate, setShowCreate] = useState(false);
+    const [createForm, setCreateForm] = useState({ username: '', email: '', full_name: '', password: 'test12345', role: 'normal', telephone: '', wechat_id: '' });
+    const [createError, setCreateError] = useState('');
+    const [createSubmitting, setCreateSubmitting] = useState(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [edit, setEdit] = useState<{ full_name: string; email: string; role: string; telephone: string; wechat_id: string }>({ full_name: '', email: '', role: 'normal', telephone: '', wechat_id: '' });
+    const [editSaving, setEditSaving] = useState(false);
+    const [resetMsg, setResetMsg] = useState<{ id: number; pw: string } | null>(null);
+
+    const refresh = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/agents`, { headers: { Authorization: `Bearer ${token}` } });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '加载失败');
+            setAgents(data.agents);
+        } catch (err: any) { setError(err.message || '加载失败'); }
+        finally { setLoading(false); }
+    };
+
+    useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    const submitCreate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setCreateError('');
+        setCreateSubmitting(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/agents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(createForm),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '创建失败');
+            setShowCreate(false);
+            setCreateForm({ username: '', email: '', full_name: '', password: 'test12345', role: 'normal', telephone: '', wechat_id: '' });
+            await refresh();
+        } catch (err: any) { setCreateError(err.message || '创建失败'); }
+        finally { setCreateSubmitting(false); }
+    };
+
+    const startEdit = (a: AdminAgentRow) => {
+        setEditingId(a.id);
+        setEdit({ full_name: a.full_name, email: a.email, role: a.role, telephone: a.telephone || '', wechat_id: a.wechat_id || '' });
+    };
+
+    const saveEdit = async () => {
+        if (editingId == null) return;
+        setEditSaving(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/agents/${editingId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(edit),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '保存失败');
+            setEditingId(null);
+            await refresh();
+        } catch (err: any) { alert(err.message || '保存失败'); }
+        finally { setEditSaving(false); }
+    };
+
+    const resetPassword = async (id: number, username: string) => {
+        if (!confirm(`确认重置 ${username} 的密码？`)) return;
+        const res = await fetch(`${API_BASE}/api/admin/agents/${id}/reset-password`, {
+            method: 'POST', headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || '重置失败'); return; }
+        setResetMsg({ id, pw: data.reset_password });
+    };
+
+    return (
+        <div className="px-6 py-8 lg:px-10">
+            <div className="max-w-5xl">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">经纪管理</h1>
+                        <p className="text-sm text-slate-500 mt-2">添加新经纪、调整角色、重置密码。</p>
+                    </div>
+                    <Button onClick={() => setShowCreate(s => !s)} size="sm">
+                        <Plus size={14} className="mr-1.5" /> 添加经纪
+                    </Button>
+                </div>
+
+                {showCreate && (
+                    <Card className="mt-6">
+                        <CardContent className="pt-6">
+                            <h3 className="font-semibold mb-4">添加新经纪</h3>
+                            <form onSubmit={submitCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">用户名</label>
+                                    <Input value={createForm.username} onChange={e => setCreateForm({ ...createForm, username: e.target.value })} required /></div>
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">邮箱</label>
+                                    <Input type="email" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} required /></div>
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">姓名</label>
+                                    <Input value={createForm.full_name} onChange={e => setCreateForm({ ...createForm, full_name: e.target.value })} required /></div>
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">初始密码</label>
+                                    <Input value={createForm.password} onChange={e => setCreateForm({ ...createForm, password: e.target.value })} /></div>
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">角色</label>
+                                    <select value={createForm.role} onChange={e => setCreateForm({ ...createForm, role: e.target.value })} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm">
+                                        <option value="normal">普通经纪</option>
+                                        <option value="admin">管理员</option>
+                                    </select></div>
+                                <div><label className="text-xs font-medium text-slate-600 mb-1 block">电话（可选）</label>
+                                    <Input value={createForm.telephone} onChange={e => setCreateForm({ ...createForm, telephone: e.target.value })} /></div>
+                                <div className="sm:col-span-2"><label className="text-xs font-medium text-slate-600 mb-1 block">微信 ID（可选）</label>
+                                    <Input value={createForm.wechat_id} onChange={e => setCreateForm({ ...createForm, wechat_id: e.target.value })} /></div>
+                                {createError && <p className="sm:col-span-2 text-sm text-red-600">{createError}</p>}
+                                <div className="sm:col-span-2 flex gap-2">
+                                    <Button type="submit" disabled={createSubmitting} size="sm">{createSubmitting ? '创建中...' : '创建'}</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); }}>取消</Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {loading && <div className="mt-6 text-sm text-slate-500">加载中...</div>}
+                {error && <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+
+                {!loading && agents.length > 0 && (
+                    <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-medium">用户名</th>
+                                    <th className="px-4 py-3 text-left font-medium">姓名</th>
+                                    <th className="px-4 py-3 text-left font-medium">邮箱</th>
+                                    <th className="px-4 py-3 text-left font-medium">角色</th>
+                                    <th className="px-4 py-3 text-left font-medium">联系</th>
+                                    <th className="px-4 py-3 text-right font-medium">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {agents.map(a => {
+                                    const isEditing = editingId === a.id;
+                                    return (
+                                    <React.Fragment key={a.id}>
+                                        <tr className="hover:bg-slate-50/60">
+                                            <td className="px-4 py-3 font-mono text-xs text-slate-700">@{a.username}</td>
+                                            <td className="px-4 py-3 text-slate-900 font-medium">{a.full_name}{a.id === currentAgentId && <span className="ml-1 text-[10px] text-slate-400">（您）</span>}</td>
+                                            <td className="px-4 py-3 text-slate-700 break-all">{a.email}</td>
+                                            <td className="px-4 py-3">
+                                                {a.role === 'admin'
+                                                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800"><ShieldCheck size={11} /> 管理员</span>
+                                                    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700">普通</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-700 text-xs">{a.telephone || '—'}{a.wechat_id ? ` · ${a.wechat_id}` : ''}</td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                <button onClick={() => startEdit(a)} className="text-xs text-orange-600 hover:underline mr-3">编辑</button>
+                                                <button onClick={() => resetPassword(a.id, a.username)} className="text-xs text-slate-600 hover:underline inline-flex items-center gap-1"><KeyRound size={11} /> 重置密码</button>
+                                            </td>
+                                        </tr>
+                                        {resetMsg && resetMsg.id === a.id && (
+                                            <tr className="bg-emerald-50/60">
+                                                <td colSpan={6} className="px-4 py-3 text-sm text-emerald-900">
+                                                    密码已重置为 <code className="font-mono px-1.5 py-0.5 bg-white rounded">{resetMsg.pw}</code>。请告知该经纪并要求其登录后修改。
+                                                    <button onClick={() => setResetMsg(null)} className="ml-3 text-xs text-emerald-700 hover:underline">关闭</button>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {isEditing && (
+                                            <tr className="bg-slate-50/60">
+                                                <td colSpan={6} className="px-4 py-4">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div><label className="text-xs text-slate-500">姓名</label>
+                                                            <Input value={edit.full_name} onChange={e => setEdit({ ...edit, full_name: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500">邮箱</label>
+                                                            <Input type="email" value={edit.email} onChange={e => setEdit({ ...edit, email: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500">角色</label>
+                                                            <select value={edit.role} onChange={e => setEdit({ ...edit, role: e.target.value })} disabled={a.id === currentAgentId} className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400">
+                                                                <option value="normal">普通经纪</option>
+                                                                <option value="admin">管理员</option>
+                                                            </select>
+                                                            {a.id === currentAgentId && <p className="text-[10px] text-slate-500 mt-1">不能修改自己的角色</p>}</div>
+                                                        <div><label className="text-xs text-slate-500">电话</label>
+                                                            <Input value={edit.telephone} onChange={e => setEdit({ ...edit, telephone: e.target.value })} /></div>
+                                                        <div className="sm:col-span-2"><label className="text-xs text-slate-500">微信 ID</label>
+                                                            <Input value={edit.wechat_id} onChange={e => setEdit({ ...edit, wechat_id: e.target.value })} /></div>
+                                                    </div>
+                                                    <div className="mt-3 flex gap-2">
+                                                        <Button size="sm" onClick={saveEdit} disabled={editSaving}>{editSaving ? '保存中...' : '保存'}</Button>
+                                                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>取消</Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 export default AgentsPage;
