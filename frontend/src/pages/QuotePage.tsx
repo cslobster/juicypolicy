@@ -1663,6 +1663,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
     const [healthPlans, setHealthPlans] = useState<HealthPlan[]>([]);
     const [showHealthResults, setShowHealthResults] = useState(false);
     const [enrollingPlan, setEnrollingPlan] = useState<HealthPlan | null>(null);
+    const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ plan: HealthPlan; firstName: string; lastName: string } | null>(null);
     const [activeQuoteId, setActiveQuoteId] = useState<number | null>(null);
     const [lastQuoteData, setLastQuoteData] = useState<any>(null);
     const [quoteChatMessages, setQuoteChatMessages] = useState<Message[]>([]);
@@ -2193,7 +2194,68 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
         <div className="animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-full w-full">
 
             <div className="flex-1 flex flex-col bg-white overflow-hidden">
-                {isLoadingQuote ? (
+                {enrollmentSuccess ? (
+                    <div className="flex-1 overflow-y-auto bg-slate-50/40 px-4 py-10 sm:py-16">
+                        <div className="mx-auto max-w-[560px] rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 px-6 py-10 sm:px-10 text-center">
+                            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-600">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                            <h2 className="text-2xl font-bold text-slate-900">投保申请已提交</h2>
+                            <p className="mt-2 text-sm text-slate-600">
+                                {(enrollmentSuccess.lastName + enrollmentSuccess.firstName).trim() && (
+                                    <span>感谢您 <span className="font-medium text-slate-900">{enrollmentSuccess.lastName}{enrollmentSuccess.firstName}</span>，</span>
+                                )}
+                                我们的代理人将在 1 个工作日内与您联系确认。
+                            </p>
+
+                            <dl className="mt-7 rounded-xl bg-slate-50 px-5 py-4 text-left text-sm divide-y divide-slate-200/70">
+                                <div className="flex justify-between py-2 first:pt-0">
+                                    <dt className="text-slate-500">计划名称</dt>
+                                    <dd className="font-medium text-slate-900 text-right">{enrollmentSuccess.plan.plan_name}</dd>
+                                </div>
+                                <div className="flex justify-between py-2">
+                                    <dt className="text-slate-500">保险公司</dt>
+                                    <dd className="font-medium text-slate-900 text-right">{enrollmentSuccess.plan.carrier}</dd>
+                                </div>
+                                <div className="flex justify-between py-2 last:pb-0">
+                                    <dt className="text-slate-500">月保费</dt>
+                                    <dd className="font-bold text-slate-900 text-right">${enrollmentSuccess.plan.monthly_premium?.toFixed(2) ?? '—'}</dd>
+                                </div>
+                            </dl>
+
+                            <div className="mt-7 flex flex-wrap justify-center gap-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setEnrollmentSuccess(null);
+                                        setEnrollingPlan(null);
+                                        setShowHealthResults(true);
+                                    }}
+                                    className="rounded-full"
+                                >
+                                    返回方案列表
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setEnrollmentSuccess(null);
+                                        setEnrollingPlan(null);
+                                        setShowHealthResults(false);
+                                        setHealthPlans([]);
+                                        setActiveQuoteId(null);
+                                        setMessages([getInitialMessage()]);
+                                        setChatStage(1);
+                                        try { localStorage.removeItem('jp_health_quote_id'); } catch { /* */ }
+                                    }}
+                                    className="rounded-full"
+                                >
+                                    重新报价
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : isLoadingQuote ? (
                     <div className="flex-1 overflow-hidden bg-gradient-to-b from-orange-50/50 via-orange-50/20 to-white flex items-center justify-center px-5 py-10">
                         <div className="relative w-full max-w-[480px]">
                             <div className="absolute inset-0 -z-10 rounded-[32px] bg-orange-50/60 blur-2xl scale-[1.04]" />
@@ -2324,13 +2386,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                                 {msg.interactiveWidget === 'health_enroll' && enrollingPlan && (
                                     <HealthEnrollWidget plan={enrollingPlan} onBack={() => {
                                         setShowHealthResults(true);
-                                    }} onSubmit={async (text, formData) => {
-                                        setMessages(prev => [
-                                            ...prev.map(m => ({ ...m, interactiveWidget: undefined as any })),
-                                            { id: Date.now().toString(), sender: 'user' as const, text },
-                                        ]);
-                                        setIsBotTyping(true);
-
+                                    }} onSubmit={async (_text, formData) => {
                                         try {
                                             await fetch(`${API_BASE}/api/enrollments`, {
                                                 method: 'POST',
@@ -2355,12 +2411,11 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                                             console.warn('Failed to persist enrollment', err);
                                         }
 
-                                        setIsBotTyping(false);
-                                        setMessages(prev => [...prev, {
-                                            id: (Date.now() + 1).toString(),
-                                            sender: 'bot' as const,
-                                            text: `您的投保申请已提交！\n\n计划: ${enrollingPlan.plan_name}\n保险公司: ${enrollingPlan.carrier}\n月保费: $${enrollingPlan.monthly_premium?.toFixed(2)}\n\n我们的顾问将在1个工作日内与您联系确认投保信息。感谢您使用鲜橙保险！`,
-                                        }]);
+                                        setEnrollmentSuccess({
+                                            plan: enrollingPlan,
+                                            firstName: formData?.firstName || '',
+                                            lastName: formData?.lastName || '',
+                                        });
                                     }} />
                                 )}
 

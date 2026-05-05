@@ -16,6 +16,7 @@ class Quote(Base):
     agent_id = Column(Integer, ForeignKey("jp_agents.id"), nullable=True, index=True)
     enrollment_data = Column(JSONB, nullable=True)
     enrollment_status = Column(String(20), nullable=True)  # null, "submitted", "contacted"
+    is_vip = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -430,6 +430,7 @@ interface AgentQuote {
     created_at: string | null;
     status: string;
     enrollment_status: string | null;
+    is_vip: boolean;
     zip: string | null;
     age: number | null;
     sex: string | null;
@@ -464,7 +465,9 @@ const ClientsView = ({ token }: { token: string }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'enrolled' | 'vip' | 'quoted'>('enrolled');
-    const VIP_INCOME_THRESHOLD = 100_000;
+    const [editingQuoteId, setEditingQuoteId] = useState<number | null>(null);
+    const [editForm, setEditForm] = useState<any>({});
+    const [actionLoading, setActionLoading] = useState<number | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
     useEffect(() => {
@@ -477,13 +480,7 @@ const ClientsView = ({ token }: { token: string }) => {
         return () => { cancelled = true; };
     }, [token]);
 
-    const isVip = (q: AgentQuote) => {
-        if (q.enrollment_status !== 'submitted') return false;
-        const inc = q.applicant?.annual_income || q.income;
-        if (!inc) return false;
-        const num = Number(String(inc).replace(/[$,\s]/g, ''));
-        return Number.isFinite(num) && num >= VIP_INCOME_THRESHOLD;
-    };
+    const isVip = (q: AgentQuote) => !!q.is_vip;
     const filtered = (quotes || []).filter(q => {
         if (tab === 'enrolled') return q.enrollment_status === 'submitted';
         if (tab === 'vip') return isVip(q);
@@ -492,6 +489,93 @@ const ClientsView = ({ token }: { token: string }) => {
     const enrolledCount = (quotes || []).filter(q => q.enrollment_status === 'submitted').length;
     const vipCount = (quotes || []).filter(isVip).length;
     const quotedOnlyCount = (quotes || []).filter(q => q.enrollment_status !== 'submitted' && q.status === 'quoted').length;
+
+    const patchQuote = async (quote_id: number, body: any) => {
+        const res = await fetch(`${API_BASE}/api/agents/me/quotes/${quote_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || '保存失败');
+        }
+    };
+
+    const toggleVip = async (q: AgentQuote) => {
+        setActionLoading(q.quote_id);
+        try {
+            await patchQuote(q.quote_id, { is_vip: !q.is_vip });
+            setQuotes(prev => prev?.map(x => x.quote_id === q.quote_id ? { ...x, is_vip: !x.is_vip } : x) || prev);
+        } catch (err: any) {
+            alert(err.message || '操作失败');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const removeQuote = async (q: AgentQuote) => {
+        if (!confirm(`确认删除此客户记录？此操作不可撤销。`)) return;
+        setActionLoading(q.quote_id);
+        try {
+            const res = await fetch(`${API_BASE}/api/agents/me/quotes/${q.quote_id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.detail || '删除失败');
+            }
+            setQuotes(prev => prev?.filter(x => x.quote_id !== q.quote_id) || prev);
+        } catch (err: any) {
+            alert(err.message || '操作失败');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const startEdit = (q: AgentQuote) => {
+        const a = q.applicant || {} as any;
+        setEditingQuoteId(q.quote_id);
+        setEditForm({
+            firstName: a.first_name || '',
+            lastName: a.last_name || '',
+            phone: a.phone || '',
+            email: a.email || '',
+            dob: a.dob || '',
+            address: a.address || '',
+            city: a.city || '',
+            state: a.state || '',
+            zip: a.zip || '',
+        });
+    };
+
+    const saveEdit = async () => {
+        if (editingQuoteId == null) return;
+        setActionLoading(editingQuoteId);
+        try {
+            await patchQuote(editingQuoteId, { applicant: editForm });
+            // Optimistic local update
+            setQuotes(prev => prev?.map(x => x.quote_id === editingQuoteId
+                ? { ...x, applicant: {
+                    ...(x.applicant || {} as any),
+                    first_name: editForm.firstName || null,
+                    last_name: editForm.lastName || null,
+                    phone: editForm.phone || null,
+                    email: editForm.email || null,
+                    dob: editForm.dob || null,
+                    address: editForm.address || null,
+                    city: editForm.city || null,
+                    state: editForm.state || null,
+                    zip: editForm.zip || null,
+                }} : x) || prev);
+            setEditingQuoteId(null);
+        } catch (err: any) {
+            alert(err.message || '保存失败');
+        } finally {
+            setActionLoading(null);
+        }
+    };
 
     const fmtDate = (iso: string | null) => {
         if (!iso) return '—';
@@ -565,7 +649,7 @@ const ClientsView = ({ token }: { token: string }) => {
                         </h3>
                         <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
                             {tab === 'vip'
-                                ? `年收入 ≥ $${VIP_INCOME_THRESHOLD.toLocaleString()} 的已投保客户会显示在这里。`
+                                ? '点击客户姓名旁的 ★ 标记可将其加入 VIP。'
                                 : '将您的专属报价链接分享给客户后，他们的请求会显示在这里。'}
                         </p>
                     </div>
@@ -581,8 +665,8 @@ const ClientsView = ({ token }: { token: string }) => {
                                     <th className="px-4 py-3 text-left font-medium">状态</th>
                                     <th className="px-4 py-3 text-left font-medium">客户</th>
                                     <th className="px-4 py-3 text-left font-medium">联系方式</th>
-                                    <th className="px-4 py-3 text-left font-medium">家庭</th>
                                     <th className="px-4 py-3 text-right font-medium">月保费</th>
+                                    <th className="px-4 py-3 text-right font-medium">操作</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -593,28 +677,28 @@ const ClientsView = ({ token }: { token: string }) => {
                                     const customerName = a && (a.first_name || a.last_name) ? `${a.last_name || ''}${a.first_name || ''}`.trim() : `#${q.quote_id}`;
                                     return (
                                     <React.Fragment key={q.quote_id}>
-                                        <tr className={`hover:bg-slate-50/60 ${hasDetails ? 'cursor-pointer' : ''}`} onClick={() => hasDetails && toggleRow(q.quote_id)}>
-                                            <td className="px-3 py-3 text-slate-400">
+                                        <tr className="hover:bg-slate-50/60">
+                                            <td className="px-3 py-3 text-slate-400 cursor-pointer" onClick={() => hasDetails && toggleRow(q.quote_id)}>
                                                 {hasDetails ? (isOpen ? '▾' : '▸') : ''}
                                             </td>
                                             <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtDate(q.created_at)}</td>
                                             <td className="px-4 py-3">{statusBadge(q)}</td>
                                             <td className="px-4 py-3 text-slate-900 font-medium">
+                                                <button
+                                                    onClick={() => toggleVip(q)}
+                                                    disabled={actionLoading === q.quote_id}
+                                                    className="mr-1.5 align-middle text-amber-400 hover:text-amber-500 disabled:opacity-50"
+                                                    title={q.is_vip ? '取消 VIP 标记' : '标记为 VIP'}
+                                                >
+                                                    <Star size={14} className={q.is_vip ? 'fill-current' : ''} />
+                                                </button>
                                                 {customerName}
-                                                {isVip(q) && (
-                                                    <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                                                        VIP
-                                                    </span>
-                                                )}
                                                 <span className="text-xs text-slate-500 ml-1.5 font-normal">
                                                     {q.age ?? '—'}岁{q.sex && ` · ${sexLabel(q.sex)}`}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
                                                 {a?.phone || a?.email || (q.zip ? `${q.zip}` : '—')}
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-700">
-                                                {q.household_size ?? 1} 人
                                             </td>
                                             <td className="px-4 py-3 text-right text-slate-900 font-medium">
                                                 {q.plan?.monthly_premium != null
@@ -623,8 +707,24 @@ const ClientsView = ({ token }: { token: string }) => {
                                                         ? `$${q.min_premium.toFixed(0)}起`
                                                         : '—'}
                                             </td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap">
+                                                <button
+                                                    onClick={() => startEdit(q)}
+                                                    disabled={actionLoading === q.quote_id}
+                                                    className="text-xs text-orange-600 hover:underline mr-3 disabled:opacity-50"
+                                                >
+                                                    编辑
+                                                </button>
+                                                <button
+                                                    onClick={() => removeQuote(q)}
+                                                    disabled={actionLoading === q.quote_id}
+                                                    className="text-xs text-red-600 hover:underline disabled:opacity-50"
+                                                >
+                                                    删除
+                                                </button>
+                                            </td>
                                         </tr>
-                                        {isOpen && a && (
+                                        {isOpen && a && editingQuoteId !== q.quote_id && (
                                             <tr className="bg-slate-50/60">
                                                 <td colSpan={7} className="px-6 py-4">
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2 text-sm">
@@ -641,6 +741,27 @@ const ClientsView = ({ token }: { token: string }) => {
                                                         <Field label="社会安全号码" value={a.ssn} />
                                                         <Field label="年收入" value={a.annual_income ? `$${Number(a.annual_income).toLocaleString()}` : null} />
                                                         <Field label="地址" value={[a.address, a.city, a.state, a.zip].filter(Boolean).join(', ')} className="col-span-full" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {editingQuoteId === q.quote_id && (
+                                            <tr className="bg-slate-50/60">
+                                                <td colSpan={7} className="px-6 py-4">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">姓</label><Input value={editForm.lastName} onChange={e => setEditForm({ ...editForm, lastName: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">名</label><Input value={editForm.firstName} onChange={e => setEditForm({ ...editForm, firstName: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">出生日期</label><Input type="date" value={editForm.dob} onChange={e => setEditForm({ ...editForm, dob: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">电话</label><Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">邮箱</label><Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} /></div>
+                                                        <div className="sm:col-span-2"><label className="text-xs text-slate-500 mb-1 block">街道地址</label><Input value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">城市</label><Input value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">州</label><Input value={editForm.state} onChange={e => setEditForm({ ...editForm, state: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">邮编</label><Input value={editForm.zip} onChange={e => setEditForm({ ...editForm, zip: e.target.value })} /></div>
+                                                    </div>
+                                                    <div className="mt-3 flex gap-2">
+                                                        <Button size="sm" onClick={saveEdit} disabled={actionLoading === q.quote_id}>{actionLoading === q.quote_id ? '保存中...' : '保存'}</Button>
+                                                        <Button size="sm" variant="outline" onClick={() => setEditingQuoteId(null)}>取消</Button>
                                                     </div>
                                                 </td>
                                             </tr>

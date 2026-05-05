@@ -617,6 +617,7 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
             "created_at": q.created_at.isoformat() if q.created_at else None,
             "status": q.quote_status,
             "enrollment_status": (e.status if e else q.enrollment_status),
+            "is_vip": bool(q.is_vip),
             "zip": cd.get("zip"),
             "age": cd.get("age"),
             "sex": cd.get("sex"),
@@ -675,6 +676,88 @@ def _to_decimal_safe(v):
         return float(str(v).replace(",", "").replace("$", ""))
     except (ValueError, TypeError):
         return None
+
+
+class AgentQuotePatchRequest(BaseModel):
+    is_vip: Optional[bool] = None
+    applicant: Optional[dict] = None  # {firstName, lastName, dob, phone, email, address, city, state, zip, ssn, annualIncome}
+
+
+@app.patch("/api/agents/me/quotes/{quote_id}")
+def agent_update_quote(
+    quote_id: int,
+    req: AgentQuotePatchRequest,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    """Edit a customer record (VIP flag and/or applicant fields)."""
+    quote = db.query(models.Quote).filter(
+        models.Quote.quote_id == quote_id,
+        models.Quote.agent_id == agent_id,
+    ).first()
+    if quote is None:
+        raise HTTPException(status_code=404, detail="未找到此客户记录")
+
+    if req.is_vip is not None:
+        quote.is_vip = bool(req.is_vip)
+
+    if req.applicant is not None:
+        a = req.applicant
+        enrollment = (
+            db.query(models.Enrollment)
+            .filter(models.Enrollment.quote_id == quote_id)
+            .order_by(models.Enrollment.created_at.desc())
+            .first()
+        )
+        if enrollment is None:
+            enrollment = models.Enrollment(
+                quote_id=quote_id,
+                agent_id=agent_id,
+                status="contacted",
+            )
+            db.add(enrollment)
+
+        for field, mapping in {
+            "first_name": ("firstName", "first_name"),
+            "middle_name": ("middleName", "middle_name"),
+            "last_name": ("lastName", "last_name"),
+            "dob": ("dob",),
+            "phone": ("phone",),
+            "email": ("email",),
+            "ssn": ("ssn",),
+            "address": ("address",),
+            "city": ("city",),
+            "state": ("state",),
+            "zip_code": ("zip", "zip_code"),
+            "annual_income": ("annualIncome", "annual_income"),
+        }.items():
+            for key in mapping:
+                if key in a:
+                    setattr(enrollment, field, a[key] if a[key] != "" else None)
+                    break
+
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/agents/me/quotes/{quote_id}")
+def agent_delete_quote(
+    quote_id: int,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    """Delete a customer record (quote + any enrollment rows)."""
+    quote = db.query(models.Quote).filter(
+        models.Quote.quote_id == quote_id,
+        models.Quote.agent_id == agent_id,
+    ).first()
+    if quote is None:
+        raise HTTPException(status_code=404, detail="未找到此客户记录")
+
+    db.query(models.Enrollment).filter(models.Enrollment.quote_id == quote_id).delete()
+    db.delete(quote)
+    db.commit()
+    return {"ok": True}
 
 
 @app.post("/api/enrollments")
