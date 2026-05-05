@@ -17,7 +17,7 @@ const LandingPage: React.FC = () => {
                             为您找到合适的<br />健康保险方案。
                         </h1>
                         <p className="mt-5 max-w-md text-lg leading-7 text-slate-600">
-                            填写几个基本信息，查看您所在县所有可投保的方案。
+                            填写几个基本信息，查看适合您的最佳保险。
                         </p>
                         <div className="mt-8 flex flex-wrap items-center gap-3">
                             <Button
