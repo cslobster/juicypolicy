@@ -2293,7 +2293,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                 <div className="flex-1 px-4 py-2 sm:py-6 overflow-y-auto flex flex-col gap-3 sm:gap-5">
                     {resumeQuoteId && !showHealthResults && (
                         <div className="mx-auto w-full max-w-[768px] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-2.5 text-sm">
-                            <span className="text-slate-700">您有上次的报价记录。</span>
+                            <span className="text-slate-700">您有 1 天内的报价记录。</span>
                             <div className="flex items-center gap-3">
                                 <button
                                     onClick={resumePastQuote}

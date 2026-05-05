@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles, BarChart2, Award, Headphones } from 'lucide-react';
+import { ArrowRight, Sparkles, Award, Headphones, Heart } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
 const FEATURES = [
-    { icon: Sparkles, title: '即时客制化并挑选合适产品' },
-    { icon: BarChart2, title: '实时保单优势及回报对比' },
-    { icon: Award, title: '全美顶尖保险公司承保' },
-    { icon: Headphones, title: '由我们的保险专家帮助完成申请' },
+    { icon: Sparkles, title: '即时报价', desc: '秒级生成方案，精准匹配最合适的保险产品。' },
+    { icon: Award, title: '顶尖承保', desc: '全美主流保险公司直接对接，正规合规可靠。' },
+    { icon: Headphones, title: '专家协助', desc: '资深保险代理全程指导，帮您完成申请流程。' },
+    { icon: Heart, title: '贴身服务', desc: '投保后持续跟进，理赔与续保贴心服务。' },
 ];
 
 const HERO_IMAGE = 'https://unicorn-images.b-cdn.net/58fd343d-38bc-4708-90c1-4fb7f4f449aa?optimizer=gif';
@@ -52,19 +52,22 @@ const LandingPage: React.FC = () => {
             <section className="bg-slate-50 px-4 py-8 sm:px-6 sm:py-10 lg:flex lg:flex-1 lg:items-center lg:px-8 lg:py-0 lg:min-h-0">
                 <div className="mx-auto w-full max-w-5xl">
                     <div className="text-center">
-                        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">为什么选择我们</h2>
-                        <p className="mt-1.5 text-sm text-slate-600 sm:text-base">我们的优势</p>
+                        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">我们提供的服务</h2>
+                        <p className="mt-1.5 text-sm text-slate-600 sm:text-base">让买保险变简单</p>
                     </div>
 
                     <div className="mt-6 grid grid-cols-1 gap-3 md:mt-8 md:grid-cols-2">
                         {FEATURES.map((f) => {
                             const Icon = f.icon;
                             return (
-                                <div key={f.title} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                <div key={f.title} className="flex items-start gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:gap-4 sm:p-5">
                                     <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50">
                                         <Icon className="h-5 w-5 text-orange-500" />
                                     </div>
-                                    <p className="text-sm font-medium leading-5 text-slate-800 sm:text-[15px]">{f.title}</p>
+                                    <div className="min-w-0">
+                                        <h3 className="text-base font-semibold text-slate-900 sm:text-[17px]">{f.title}</h3>
+                                        <p className="mt-0.5 text-sm leading-5 text-slate-600">{f.desc}</p>
+                                    </div>
                                 </div>
                             );
                         })}
