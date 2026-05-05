@@ -92,7 +92,7 @@ const LandingPage: React.FC = () => {
                         <div
                             key={b.title}
                             className={`grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16 ${
-                                b.side === 'left' ? 'lg:[&>*:first-child]:order-2' : ''
+                                (b.side as string) === 'left' ? 'lg:[&>*:first-child]:order-2' : ''
                             }`}
                         >
                             <div>
