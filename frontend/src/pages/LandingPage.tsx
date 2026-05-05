@@ -1,6 +1,15 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { Users, ShieldPlus, PlayCircle, ArrowRight, FileHeart, Stethoscope, Heart, Globe2, Pill, Activity, FileText, Hospital } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { PlayCircle, FileHeart, Stethoscope, Heart, Globe2, Pill, Activity, FileText, Hospital, Sparkles, Award, BarChart2, FileSignature, FileSearch, UserCheck } from 'lucide-react';
 import { Button } from '../components/ui/button';
+
+const SERVICES = [
+    { icon: Sparkles, title: '即时客制化并挑选合适产品' },
+    { icon: BarChart2, title: '实时保单优势及回报对比' },
+    { icon: Award, title: '全美顶尖保险公司承保' },
+    { icon: FileSignature, title: '线上电子签字、自动递交一个或多个申请' },
+    { icon: FileSearch, title: '一键同步医疗记录及上传文件' },
+    { icon: UserCheck, title: '可选择专家帮助或自行完成申请，无需通过保险代理人' },
+];
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
@@ -50,38 +59,46 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* Features */}
-            <section className="bg-slate-50 px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-                <div className="mx-auto max-w-5xl">
+            {/* Services */}
+            <section className="bg-white px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
+                <div className="mx-auto max-w-6xl">
                     <div className="text-center">
-                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">为什么选择我们</h2>
-                        <p className="mt-3 text-base text-slate-600">我们的优势</p>
+                        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">我们提供的服务</h2>
+                        <p className="mx-auto mt-3 max-w-2xl text-base leading-7 text-slate-600">
+                            我们使用大数据和保险科技为您选择最合适的高回报产品。
+                        </p>
                     </div>
 
-                    <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <FeatureCard
-                            icon={<Users className="h-5 w-5 text-orange-500" />}
-                            title="专业的代理人"
-                            desc="我们的代理人都经过严格的培训，为您提供最专业的服务。"
-                            cta="了解更多"
-                            to="/agents"
-                        />
-                        <FeatureCard
-                            icon={<ShieldPlus className="h-5 w-5 text-orange-500" />}
-                            title="全面的保险服务"
-                            desc="我们提供全面的健康保险和人寿保险，满足您的所有需求。"
-                            cta="了解更多"
-                            to="/agent/sisi"
-                        />
-                    </div>
+                    <div className="mt-12 grid grid-cols-1 items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
+                        {/* Service icons grid */}
+                        <ul className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2">
+                            {SERVICES.map((s) => {
+                                const Icon = s.icon;
+                                return (
+                                    <li key={s.title} className="flex flex-col items-start">
+                                        <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+                                            <Icon className="h-6 w-6 text-blue-700" />
+                                        </div>
+                                        <p className="text-sm font-medium leading-6 text-slate-800">{s.title}</p>
+                                    </li>
+                                );
+                            })}
+                        </ul>
 
-                    <div className="mt-12 flex justify-center">
-                        <a
-                            href="mailto:hello@juicypolicy.com"
-                            className="inline-flex h-11 min-w-[180px] items-center justify-center rounded-lg border border-orange-500 px-6 text-sm font-medium text-orange-600 hover:bg-orange-50"
-                        >
-                            联系我们
-                        </a>
+                        {/* Illustration block (placeholder; swap with real artwork when available) */}
+                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50 via-white to-slate-100 ring-1 ring-slate-200/70">
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Stethoscope className="h-32 w-32 text-blue-200" />
+                            </div>
+                            <div className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200/60">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                <span className="text-xs font-medium text-slate-700">实时报价</span>
+                            </div>
+                            <div className="absolute right-6 bottom-6 inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200/60">
+                                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                <span className="text-xs font-medium text-slate-700">高回报产品</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -97,28 +114,5 @@ const LandingPage: React.FC = () => {
         </div>
     );
 };
-
-const FeatureCard: React.FC<{
-    icon: React.ReactNode;
-    title: string;
-    desc: string;
-    cta: string;
-    to: string;
-}> = ({ icon, title, desc, cta, to }) => (
-    <div className="rounded-2xl bg-white p-7 shadow-sm ring-1 ring-slate-200/70">
-        <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-orange-50">
-            {icon}
-        </div>
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <p className="mt-2 text-sm leading-7 text-slate-600">{desc}</p>
-        <Link
-            to={to}
-            className="mt-5 inline-flex h-11 min-w-[140px] items-center justify-center gap-1.5 rounded-lg border border-orange-500 px-5 text-sm font-medium text-orange-600 hover:bg-orange-50"
-        >
-            {cta}
-            <ArrowRight className="h-4 w-4" />
-        </Link>
-    </div>
-);
 
 export default LandingPage;
