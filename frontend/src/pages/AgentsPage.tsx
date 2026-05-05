@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -129,12 +129,15 @@ const AgentAuthForms = ({ onAuthed }: { onAuthed: (a: any, t: string) => void })
     );
 };
 
-type DashboardView = 'home' | 'clients' | 'marketing';
+type DashboardView = 'home' | 'clients' | 'marketing' | 'copy' | 'tools' | 'training';
 
 const NAV_ITEMS: { id: DashboardView; label: string; icon: any }[] = [
     { id: 'home', label: '首页', icon: Home },
-    { id: 'clients', label: '客户', icon: UserCircle },
-    { id: 'marketing', label: '推广', icon: Megaphone },
+    { id: 'clients', label: '客户管理', icon: UserCircle },
+    { id: 'marketing', label: '市场推广', icon: Megaphone },
+    { id: 'copy', label: '文案制作', icon: PenLine },
+    { id: 'tools', label: '用脚管理', icon: Settings },
+    { id: 'training', label: '行业培训', icon: GraduationCap },
 ];
 
 const initials = (name: string) =>
@@ -215,7 +218,10 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
             <main className="flex-1 overflow-y-auto pt-12 md:pt-0">
                 {view === 'home' && <HomeView agent={agent} token={token} onUpdate={onUpdate} />}
                 {view === 'clients' && <ClientsView token={token} />}
-                {view === 'marketing' && <MarketingView agent={agent} /> }
+                {view === 'marketing' && <MarketingView agent={agent} />}
+                {view === 'copy' && <ComingSoonView title="文案制作" subtitle="一键生成微信、抖音、朋友圈文案模板。" icon={PenLine} />}
+                {view === 'tools' && <ComingSoonView title="用脚管理" subtitle="账号设置、密码、权限和数据导出。" icon={Settings} />}
+                {view === 'training' && <ComingSoonView title="行业培训" subtitle="定期发布的产品介绍和销售培训课程。" icon={GraduationCap} />}
             </main>
         </div>
     );
@@ -503,7 +509,7 @@ const ClientsView = ({ token }: { token: string }) => {
             <div className="max-w-5xl">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">客户</h1>
+                        <h1 className="text-2xl font-bold text-slate-900">客户管理</h1>
                         <p className="text-sm text-slate-500 mt-2">通过您的专属链接提交报价或申请的客户。</p>
                     </div>
                 </div>
@@ -698,5 +704,21 @@ const MarketingView = ({ agent }: any) => {
         </div>
     );
 };
+
+const ComingSoonView = ({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: any }) => (
+    <div className="px-6 py-8 lg:px-10">
+        <div className="max-w-3xl">
+            <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+            <p className="text-sm text-slate-500 mt-2">{subtitle}</p>
+            <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+                <Icon size={36} className="mx-auto text-slate-300" />
+                <h3 className="mt-4 text-base font-semibold text-slate-900">即将上线</h3>
+                <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+                    我们正在打磨这个功能，敬请期待。
+                </p>
+            </div>
+        </div>
+    </div>
+);
 
 export default AgentsPage;

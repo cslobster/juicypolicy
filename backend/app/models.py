@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary, ForeignKey, Numeric
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, LargeBinary, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from .database import Base
@@ -78,15 +78,13 @@ class Enrollment(Base):
     income_type = Column(String(40), nullable=True)
     qualifying_event = Column(String(80), nullable=True)
 
-    # Plan snapshot
+    # Plan snapshot — only id/name/carrier are first-class columns;
+    # all other plan attributes live in plan_meta jsonb (plan_type, network_type,
+    # monthly_premium, deductible, max_out_of_pocket, etc.)
     plan_id = Column(String(50), nullable=True)
     plan_name = Column(String(255), nullable=True)
     plan_carrier = Column(String(255), nullable=True)
-    plan_type = Column(String(40), nullable=True)
-    network_type = Column(String(40), nullable=True)
-    monthly_premium = Column(Numeric(10, 2), nullable=True)
-    deductible = Column(Integer, nullable=True)
-    max_out_of_pocket = Column(Integer, nullable=True)
+    plan_meta = Column(JSONB, nullable=True)
 
     status = Column(String(20), default="submitted")  # submitted, contacted, enrolled, cancelled
 

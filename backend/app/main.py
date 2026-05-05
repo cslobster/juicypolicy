@@ -634,7 +634,11 @@ def agent_quotes(agent_id: int = Depends(require_agent), db: Session = Depends(g
             "plan": ({
                 "plan_name": e.plan_name,
                 "carrier": e.plan_carrier,
-                "monthly_premium": float(e.monthly_premium) if e.monthly_premium is not None else None,
+                "monthly_premium": (
+                    float(e.plan_meta["monthly_premium"])
+                    if e.plan_meta and e.plan_meta.get("monthly_premium") is not None
+                    else None
+                ),
             } if e else None),
         })
     return {"quotes": out}
@@ -728,11 +732,13 @@ def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
         plan_id=p.get("plan_id"),
         plan_name=p.get("plan_name"),
         plan_carrier=p.get("carrier"),
-        plan_type=p.get("plan_type"),
-        network_type=p.get("network_type"),
-        monthly_premium=_to_decimal_safe(p.get("monthly_premium")),
-        deductible=_to_int_safe(p.get("deductible")),
-        max_out_of_pocket=_to_int_safe(p.get("max_out_of_pocket")),
+        plan_meta={k: v for k, v in {
+            "plan_type": p.get("plan_type"),
+            "network_type": p.get("network_type"),
+            "monthly_premium": _to_decimal_safe(p.get("monthly_premium")),
+            "deductible": _to_int_safe(p.get("deductible")),
+            "max_out_of_pocket": _to_int_safe(p.get("max_out_of_pocket")),
+        }.items() if v is not None} or None,
         status="submitted",
     )
     db.add(enrollment)
