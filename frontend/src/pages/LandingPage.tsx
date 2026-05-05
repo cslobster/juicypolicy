@@ -1,6 +1,13 @@
-import { useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Users, ShieldPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Sparkles, BarChart2, Award, Headphones } from 'lucide-react';
 import { Button } from '../components/ui/button';
+
+const FEATURES = [
+    { icon: Sparkles, title: '即时客制化并挑选合适产品' },
+    { icon: BarChart2, title: '实时保单优势及回报对比' },
+    { icon: Award, title: '全美顶尖保险公司承保' },
+    { icon: Headphones, title: '由我们的保险专家帮助完成申请' },
+];
 
 const HERO_IMAGE = 'https://unicorn-images.b-cdn.net/58fd343d-38bc-4708-90c1-4fb7f4f449aa?optimizer=gif';
 
@@ -49,21 +56,18 @@ const LandingPage: React.FC = () => {
                         <p className="mt-1.5 text-sm text-slate-600 sm:text-base">我们的优势</p>
                     </div>
 
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-2">
-                        <FeatureCard
-                            icon={<Users className="h-5 w-5 text-orange-500" />}
-                            title="专业的代理人"
-                            desc="经过严格培训，为您提供最专业的服务。"
-                            cta="了解更多"
-                            to="/agents"
-                        />
-                        <FeatureCard
-                            icon={<ShieldPlus className="h-5 w-5 text-orange-500" />}
-                            title="全面的保险服务"
-                            desc="健康保险与人寿保险，满足您的需求。"
-                            cta="了解更多"
-                            to="/agent/sisi"
-                        />
+                    <div className="mt-6 grid grid-cols-1 gap-3 md:mt-8 md:grid-cols-2">
+                        {FEATURES.map((f) => {
+                            const Icon = f.icon;
+                            return (
+                                <div key={f.title} className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70">
+                                    <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50">
+                                        <Icon className="h-5 w-5 text-orange-500" />
+                                    </div>
+                                    <p className="text-sm font-medium leading-5 text-slate-800 sm:text-[15px]">{f.title}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </section>
@@ -79,30 +83,5 @@ const LandingPage: React.FC = () => {
         </div>
     );
 };
-
-const FeatureCard: React.FC<{
-    icon: React.ReactNode;
-    title: string;
-    desc: string;
-    cta: string;
-    to: string;
-}> = ({ icon, title, desc, cta, to }) => (
-    <div className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70 sm:gap-5 sm:p-5">
-        <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 sm:h-11 sm:w-11">
-            {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold sm:text-lg">{title}</h3>
-            <p className="mt-0.5 text-sm leading-5 text-slate-600">{desc}</p>
-        </div>
-        <Link
-            to={to}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-orange-600 hover:bg-orange-50 sm:px-3 sm:py-1.5"
-        >
-            <span className="hidden sm:inline">{cta}</span>
-            <ArrowRight className="h-4 w-4" />
-        </Link>
-    </div>
-);
 
 export default LandingPage;
