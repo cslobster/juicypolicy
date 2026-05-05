@@ -1314,11 +1314,8 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
                         </div>
                     </section>
 
-                    <section className="mt-8 sm:mt-16">
-                        <h2 className="text-xl sm:text-2xl font-bold leading-tight tracking-normal">谁需要保障？</h2>
-                        <p className="mt-1 text-sm text-[#858585]">填写需要保险的家庭成员。</p>
-
-                        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <section className="mt-5 sm:mt-10">
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                             <div className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 border-b border-slate-200 px-4 py-2">
                                 <div className="text-sm font-medium">本人</div>
                                 <input
