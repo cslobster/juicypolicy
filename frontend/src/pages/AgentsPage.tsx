@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X, Share2, LayoutGrid, List, Download, Wand2 } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X, Share2, LayoutGrid, List, Download, Wand2, Crosshair } from 'lucide-react';
+import jsQR from 'jsqr';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -1174,6 +1175,137 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             img.src = src;
         });
 
+    // Run jsQR + heuristic phone detection on the poster, snap overlays.
+    const [aligning, setAligning] = useState(false);
+    const autoAlign = async () => {
+        if (!posterSrc || !posterDims) return;
+        setError('');
+        setAligning(true);
+        try {
+            const img = await loadImg(posterSrc);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas 不可用');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // 1. QR detection via jsQR
+            const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' });
+            const messages: string[] = [];
+            if (code) {
+                const xs = [code.location.topLeftCorner.x, code.location.topRightCorner.x, code.location.bottomLeftCorner.x, code.location.bottomRightCorner.x];
+                const ys = [code.location.topLeftCorner.y, code.location.topRightCorner.y, code.location.bottomLeftCorner.y, code.location.bottomRightCorner.y];
+                const minX = Math.min(...xs), maxX = Math.max(...xs);
+                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                const sizeFrac = Math.max(maxX - minX, maxY - minY) / canvas.width;
+                setQrBox({
+                    x: Math.max(0, Math.min(1 - sizeFrac, minX / canvas.width)),
+                    y: Math.max(0, Math.min(1 - (sizeFrac * canvas.width / canvas.height), minY / canvas.height)),
+                    size: sizeFrac,
+                });
+                messages.push('已对齐二维码');
+            } else {
+                messages.push('未检测到二维码');
+            }
+
+            // 2. Phone-number detection: look for rows containing a horizontal
+            // run of dark pixels that's long and short — typical phone band.
+            // We binarize, project rows, find row clusters; for each, find the
+            // widest contiguous horizontal run of dark pixels.
+            const W = data.width, H = data.height;
+            const px = data.data;
+            const dark = new Uint8Array(W * H);
+            // Threshold: pixel is "ink" if its grayscale < 130
+            for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+                const gray = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+                dark[p] = gray < 130 ? 1 : 0;
+            }
+            // Per-row dark count
+            const rowCount = new Uint32Array(H);
+            for (let y = 0; y < H; y++) {
+                let c = 0;
+                const off = y * W;
+                for (let x = 0; x < W; x++) c += dark[off + x];
+                rowCount[y] = c;
+            }
+            // Phone-like rows: dark count is moderate (text, not solid stripe).
+            // Typical phone height: 1.5%–8% of poster height. We look in the
+            // bottom 60% of the poster (phones almost always live near footer).
+            const startY = Math.floor(H * 0.4);
+            const minDark = W * 0.02;   // at least 2% of row pixels are ink
+            const maxDark = W * 0.4;    // less than 40% (else it's a stripe)
+            // Find candidate row bands
+            const bands: { y0: number; y1: number }[] = [];
+            let bandStart = -1;
+            for (let y = startY; y < H; y++) {
+                const isText = rowCount[y] > minDark && rowCount[y] < maxDark;
+                if (isText && bandStart < 0) bandStart = y;
+                else if (!isText && bandStart >= 0) {
+                    bands.push({ y0: bandStart, y1: y });
+                    bandStart = -1;
+                }
+            }
+            if (bandStart >= 0) bands.push({ y0: bandStart, y1: H });
+            // For each band, find the widest horizontal run of "ink columns"
+            let bestPhone: { x: number; y: number; w: number; h: number; score: number } | null = null;
+            for (const b of bands) {
+                const bandH = b.y1 - b.y0;
+                if (bandH < 6 || bandH > H * 0.1) continue;
+                // Per-column sum of dark pixels within the band
+                const colCount = new Uint32Array(W);
+                for (let y = b.y0; y < b.y1; y++) {
+                    const off = y * W;
+                    for (let x = 0; x < W; x++) colCount[x] += dark[off + x];
+                }
+                const colThresh = bandH * 0.15;
+                let runStart = -1;
+                let bestRun: { x0: number; x1: number } | null = null;
+                for (let x = 0; x < W; x++) {
+                    const isInk = colCount[x] > colThresh;
+                    if (isInk && runStart < 0) runStart = x;
+                    else if (!isInk && runStart >= 0) {
+                        const len = x - runStart;
+                        if (!bestRun || len > bestRun.x1 - bestRun.x0) bestRun = { x0: runStart, x1: x };
+                        runStart = -1;
+                    }
+                }
+                if (!bestRun) continue;
+                const w = bestRun.x1 - bestRun.x0;
+                // Phone-like: aspect 4–14 wide:tall, > 6% poster width
+                const aspect = w / bandH;
+                if (aspect < 4 || aspect > 14) continue;
+                if (w < W * 0.06) continue;
+                // Score: prefer longer runs lower in the poster
+                const score = w * (b.y0 / H);
+                if (!bestPhone || score > bestPhone.score) {
+                    bestPhone = { x: bestRun.x0, y: b.y0, w, h: bandH, score };
+                }
+            }
+            if (bestPhone) {
+                // Add a small horizontal margin so the box covers the entire glyph
+                const padX = Math.round(bestPhone.h * 0.3);
+                const padY = Math.round(bestPhone.h * 0.15);
+                const x = Math.max(0, bestPhone.x - padX);
+                const y = Math.max(0, bestPhone.y - padY);
+                const w = Math.min(W - x, bestPhone.w + padX * 2);
+                const h = Math.min(H - y, bestPhone.h + padY * 2);
+                setPhoneEnabled(true);
+                setPhoneBox({ x: x / W, y: y / H, w: w / W, h: h / H });
+                messages.push('已对齐电话号码');
+            } else if (phoneEnabled) {
+                messages.push('未检测到电话号码');
+            }
+            // Surface as a non-blocking info message (uses error slot for now)
+            if (messages.length) setError(messages.join('；'));
+        } catch (err: any) {
+            setError(err.message || '自动对齐失败');
+        } finally {
+            setAligning(false);
+        }
+    };
+
     const renderComposite = async (): Promise<Blob> => {
         if (!posterSrc || !posterDims) throw new Error('请先选择海报');
         const [posterImg, qrImg] = await Promise.all([loadImg(posterSrc), loadImg(qrSrc)]);
@@ -1442,17 +1574,28 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                         />
                                         覆盖海报上的电话号码
                                     </label>
-                                    {phoneEnabled && (
-                                        <input
-                                            type="text"
-                                            value={phoneText}
-                                            onChange={e => setPhoneText(e.target.value)}
-                                            placeholder="电话号码"
-                                            className="text-xs px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-orange-400 w-44"
-                                        />
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        {phoneEnabled && (
+                                            <input
+                                                type="text"
+                                                value={phoneText}
+                                                onChange={e => setPhoneText(e.target.value)}
+                                                placeholder="电话号码"
+                                                className="text-xs px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-orange-400 w-44"
+                                            />
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={autoAlign}
+                                            disabled={aligning}
+                                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                                            title="自动检测海报上的二维码和电话号码"
+                                        >
+                                            <Crosshair size={12} /> {aligning ? '识别中…' : '智能对齐'}
+                                        </button>
+                                    </div>
                                 </div>
-                                <p className="text-xs font-medium text-slate-700 mb-2">拖动方框定位二维码与电话号码（右下角小方块可调整大小）</p>
+                                <p className="text-xs font-medium text-slate-700 mb-2">拖动方框定位二维码与电话号码（右下角小方块可调整大小）。点击「智能对齐」自动定位。</p>
                                 <div
                                     ref={containerRef}
                                     className="relative w-full mx-auto bg-slate-100 rounded-lg overflow-hidden select-none touch-none"
