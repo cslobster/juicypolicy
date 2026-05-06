@@ -970,6 +970,22 @@ const CopyAssetsView = ({ token }: { token: string }) => {
                 xhr.send(file);
             });
 
+            // 3. confirm — only now does the DB row get created
+            const confirmRes = await fetch(`${API_BASE}/api/agents/me/uploads/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    r2_key: presignData.r2_key,
+                    filename: file.name,
+                    mime_type: file.type,
+                    size_bytes: file.size,
+                }),
+            });
+            if (!confirmRes.ok) {
+                const d = await confirmRes.json().catch(() => ({}));
+                throw new Error(d.detail || '确认上传失败');
+            }
+
             setProgress(p => { const next = { ...p }; delete next[tag]; return next; });
             await refresh();
         } catch (err: any) {

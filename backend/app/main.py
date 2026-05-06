@@ -779,8 +779,9 @@ class PresignUploadRequest(BaseModel):
 def agent_presign_upload(
     req: PresignUploadRequest,
     agent_id: int = Depends(require_agent),
-    db: Session = Depends(get_db),
 ):
+    """Just sign a PUT URL. No DB row yet — caller must confirm after PUT
+    succeeds, otherwise we won't track the object."""
     if not req.filename.strip():
         raise HTTPException(status_code=400, detail="文件名不能为空")
     mime = (req.mime_type or "").lower()
@@ -792,26 +793,53 @@ def agent_presign_upload(
     key = r2_service.make_object_key(agent_id, req.filename)
     upload_url = r2_service.presign_put(key, mime or None)
 
+    return {
+        "upload_url": upload_url,
+        "r2_key": key,
+        "expires_in": 600,
+    }
+
+
+class ConfirmUploadRequest(BaseModel):
+    r2_key: str
+    filename: str
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    label: Optional[str] = None
+
+
+@app.post("/api/agents/me/uploads/confirm")
+def agent_confirm_upload(
+    req: ConfirmUploadRequest,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    """Caller invokes this after the browser successfully PUTs to R2.
+    Verifies the object exists, then records the DB row."""
+    # Sanity: the key must belong to this agent's namespace
+    if not req.r2_key.startswith(f"agents/{agent_id}/"):
+        raise HTTPException(status_code=400, detail="key 不属于当前代理")
+    # Verify the object actually landed
+    try:
+        head = r2_service._client().head_object(Bucket=r2_service.R2_BUCKET, Key=req.r2_key)
+    except Exception:
+        raise HTTPException(status_code=400, detail="R2 中未找到对应文件，上传可能失败")
+
+    actual_size = head.get("ContentLength")
+
     upload = models.Upload(
         agent_id=agent_id,
         filename=req.filename,
-        mime_type=mime or None,
-        size_bytes=req.size_bytes,
-        r2_key=key,
-        public_url=r2_service.public_url_for(key),
+        mime_type=(req.mime_type or "").lower() or None,
+        size_bytes=actual_size if actual_size is not None else req.size_bytes,
+        r2_key=req.r2_key,
+        public_url=r2_service.public_url_for(req.r2_key),
         label=(req.label or "").strip() or None,
     )
     db.add(upload)
     db.commit()
     db.refresh(upload)
-
-    return {
-        "upload_id": upload.id,
-        "upload_url": upload_url,
-        "r2_key": key,
-        "public_url": upload.public_url,
-        "expires_in": 600,
-    }
+    return _upload_to_dict(upload)
 
 
 def _upload_to_dict(u: models.Upload) -> dict:
