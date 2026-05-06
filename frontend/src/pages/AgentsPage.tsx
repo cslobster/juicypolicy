@@ -990,7 +990,9 @@ interface PosterEditorProps {
 const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, sharedAssets, onClose }) => {
     const [posterSrc, setPosterSrc] = useState<string | null>(null);
     const [posterDims, setPosterDims] = useState<{ w: number; h: number } | null>(null);
-    const [qrSource, setQrSource] = useState<'marketing' | 'wechat'>('marketing');
+    // Default to the agent's WeChat QR if uploaded; otherwise fall back to the
+    // public quote-page link.
+    const [qrSource, setQrSource] = useState<'marketing' | 'wechat'>(agent?.wechat_qr ? 'wechat' : 'marketing');
     const [qrBox, setQrBox] = useState({ x: 0.4, y: 0.6, size: 0.2 });
     const [error, setError] = useState('');
     const [downloading, setDownloading] = useState(false);
@@ -1271,7 +1273,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                         onClick={() => setQrSource('marketing')}
                                         className={`text-sm px-3 py-1.5 rounded-md border ${qrSource === 'marketing' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-300 hover:bg-slate-50'}`}
                                     >
-                                        营销链接二维码
+                                        报价链接二维码
                                     </button>
                                     <button
                                         type="button"
