@@ -999,7 +999,8 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
 
     // For canvas reads, route R2-hosted images through the FastAPI proxy so the
     // browser sees Access-Control-Allow-Origin from our own origin (no R2 CORS).
-    const r2Proxy = (key: string) => `${API_BASE}/api/r2/file/${key}`;
+    // The ?v= bust forces a fresh fetch past any browser-cached CORS headers.
+    const r2Proxy = (key: string) => `${API_BASE}/api/r2/file/${key}?v=3`;
 
     const wechatQrAvailable = !!agent.wechat_qr;
     const qrSrc = qrSource === 'marketing'

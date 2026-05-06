@@ -690,10 +690,16 @@ def r2_file_proxy(r2_key: str):
         raise HTTPException(status_code=404, detail="Not found")
     body = obj["Body"].read()
     content_type = obj.get("ContentType") or "application/octet-stream"
+    # No long-lived cache: an earlier deploy returned per-origin ACAO and
+    # browsers cache images with their CORS headers, so a stale cached
+    # response can keep failing forever even after the server is fixed.
     return Response(
         content=body,
         media_type=content_type,
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
+        },
     )
 
 
