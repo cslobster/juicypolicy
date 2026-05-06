@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Phone, Citrus } from 'lucide-react';
 import QuotePage from './QuotePage';
 import ChatInterface from '../components/ChatInterface';
@@ -55,9 +55,14 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
         <header className="sticky top-0 z-30 bg-[#103b35] text-white shadow-sm">
             <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20">
+                    <Link
+                        to="/"
+                        aria-label="鲜橙保险首页"
+                        title="返回鲜橙保险首页"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 hover:bg-white/25 transition-colors"
+                    >
                         <Citrus size={18} className="text-orange-300" />
-                    </div>
+                    </Link>
                     <div className="min-w-0">
                         {agent ? (
                             <>
