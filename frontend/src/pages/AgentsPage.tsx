@@ -273,7 +273,7 @@ const HomeView = ({ agent, token, onUpdate }: any) => {
 
                 <h2 className="mt-8 text-base font-semibold text-slate-900">入门清单</h2>
                 <div className="mt-3 rounded-xl bg-white border border-slate-200 divide-y divide-slate-100">
-                    <ChecklistRow done label="完善您的联系方式（电话、微信、邮箱）" />
+                    <ChecklistRow done label="完善您的联系方式（电话、微信）" />
                     <ChecklistRow done={!!agent.telephone} label="设置电话以便客户来电咨询" />
                     <ChecklistRow done={!!agent.wechat_id} label="设置微信 ID 以接收客户咨询" />
                     <ChecklistRow done={!!agent.wechat_qr} label="上传微信二维码方便客户扫码添加" />
@@ -386,10 +386,6 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
                             <Input value={draft.full_name} onChange={e => setDraft({ ...draft, full_name: e.target.value })} />
                         </div>
                         <div>
-                            <label className="text-xs font-medium text-slate-600 mb-1 block">邮箱</label>
-                            <Input type="email" value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} />
-                        </div>
-                        <div>
                             <label className="text-xs font-medium text-slate-600 mb-1 block">电话</label>
                             <Input value={draft.telephone} onChange={e => setDraft({ ...draft, telephone: e.target.value })} />
                         </div>
@@ -453,7 +449,6 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
                 ) : (
                     <dl className="space-y-2.5 text-sm">
                         <div className="flex"><dt className="w-24 text-slate-500">姓名</dt><dd className="text-slate-900">{agent.full_name}</dd></div>
-                        <div className="flex"><dt className="w-24 text-slate-500">邮箱</dt><dd className="text-slate-900">{agent.email}</dd></div>
                         <div className="flex"><dt className="w-24 text-slate-500">电话</dt><dd className="text-slate-900">{agent.telephone || <span className="text-slate-400">未设置</span>}</dd></div>
                         <div className="flex"><dt className="w-24 text-slate-500">微信 ID</dt><dd className="text-slate-900">{agent.wechat_id || <span className="text-slate-400">未设置</span>}</dd></div>
                         <div className="flex items-start"><dt className="w-24 text-slate-500 mt-1">微信二维码</dt>
