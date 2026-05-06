@@ -760,6 +760,129 @@ def agent_delete_quote(
     return {"ok": True}
 
 
+# --- Uploads (R2) ---
+
+from . import r2_service
+
+ALLOWED_UPLOAD_MIME_PREFIXES = ("image/", "video/", "application/pdf", "audio/")
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB per file
+
+
+class PresignUploadRequest(BaseModel):
+    filename: str
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    label: Optional[str] = None
+
+
+@app.post("/api/agents/me/uploads/presign")
+def agent_presign_upload(
+    req: PresignUploadRequest,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    if not req.filename.strip():
+        raise HTTPException(status_code=400, detail="文件名不能为空")
+    mime = (req.mime_type or "").lower()
+    if mime and not any(mime.startswith(p) for p in ALLOWED_UPLOAD_MIME_PREFIXES):
+        raise HTTPException(status_code=400, detail=f"不支持的文件类型：{mime}")
+    if req.size_bytes is not None and req.size_bytes > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"单个文件不能超过 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+
+    key = r2_service.make_object_key(agent_id, req.filename)
+    upload_url = r2_service.presign_put(key, mime or None)
+
+    upload = models.Upload(
+        agent_id=agent_id,
+        filename=req.filename,
+        mime_type=mime or None,
+        size_bytes=req.size_bytes,
+        r2_key=key,
+        public_url=r2_service.public_url_for(key),
+        label=(req.label or "").strip() or None,
+    )
+    db.add(upload)
+    db.commit()
+    db.refresh(upload)
+
+    return {
+        "upload_id": upload.id,
+        "upload_url": upload_url,
+        "r2_key": key,
+        "public_url": upload.public_url,
+        "expires_in": 600,
+    }
+
+
+def _upload_to_dict(u: models.Upload) -> dict:
+    return {
+        "id": u.id,
+        "filename": u.filename,
+        "mime_type": u.mime_type,
+        "size_bytes": u.size_bytes,
+        "r2_key": u.r2_key,
+        "public_url": u.public_url or r2_service.presign_get(u.r2_key),
+        "label": u.label,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+    }
+
+
+@app.get("/api/agents/me/uploads")
+def agent_list_uploads(
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(models.Upload)
+        .filter(models.Upload.agent_id == agent_id)
+        .order_by(models.Upload.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    return {"uploads": [_upload_to_dict(u) for u in rows]}
+
+
+@app.delete("/api/agents/me/uploads/{upload_id}")
+def agent_delete_upload(
+    upload_id: int,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    u = db.query(models.Upload).filter(
+        models.Upload.id == upload_id,
+        models.Upload.agent_id == agent_id,
+    ).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="文件未找到")
+    try:
+        r2_service.delete_object(u.r2_key)
+    except Exception as e:
+        print(f"[Upload {upload_id}] R2 delete failed: {e}")
+    db.delete(u)
+    db.commit()
+    return {"ok": True}
+
+
+@app.patch("/api/agents/me/uploads/{upload_id}")
+def agent_update_upload(
+    upload_id: int,
+    body: dict,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    u = db.query(models.Upload).filter(
+        models.Upload.id == upload_id,
+        models.Upload.agent_id == agent_id,
+    ).first()
+    if u is None:
+        raise HTTPException(status_code=404, detail="文件未找到")
+    if "label" in body:
+        u.label = (body.get("label") or "").strip() or None
+    db.commit()
+    db.refresh(u)
+    return _upload_to_dict(u)
+
+
 @app.post("/api/enrollments")
 def submit_enrollment(req: EnrollmentRequest, db: Session = Depends(get_db)):
     """Persist applicant info for a chosen plan. Tied to a quote when possible."""

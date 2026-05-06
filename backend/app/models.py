@@ -38,6 +38,20 @@ class Agent(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class Upload(Base):
+    __tablename__ = "jp_uploads"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    agent_id = Column(Integer, ForeignKey("jp_agents.id"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    mime_type = Column(String(120), nullable=True)
+    size_bytes = Column(Integer, nullable=True)
+    r2_key = Column(String(512), nullable=False, unique=True)
+    public_url = Column(String(1024), nullable=True)
+    label = Column(String(120), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Enrollment(Base):
     __tablename__ = "jp_enrollments"
 

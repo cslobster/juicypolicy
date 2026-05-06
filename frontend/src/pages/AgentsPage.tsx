@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -225,7 +225,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
                 {view === 'quote' && <QuoteView agent={agent} />}
                 {view === 'clients' && <ClientsView token={token} />}
                 {view === 'marketing' && <MarketingView agent={agent} />}
-                {view === 'copy' && <ComingSoonView title="文案制作" subtitle="一键生成微信、抖音、朋友圈文案模板。" icon={PenLine} />}
+                {view === 'copy' && <CopyAssetsView token={token} />}
                 {view === 'tools' && <ComingSoonView title="佣金管理" subtitle="跟踪每个客户的佣金、对账单和提现记录。" icon={Settings} />}
                 {view === 'training' && <ComingSoonView title="行业培训" subtitle="定期发布的产品介绍和销售培训课程。" icon={GraduationCap} />}
                 {view === 'admin' && agent?.role === 'admin' && <AdminAgentsView token={token} currentAgentId={agent.id} />}
@@ -862,6 +862,237 @@ const QuoteView = ({ agent }: any) => (
         </div>
     </div>
 );
+
+interface AgentUpload {
+    id: number;
+    filename: string;
+    mime_type: string | null;
+    size_bytes: number | null;
+    public_url: string;
+    label: string | null;
+    created_at: string | null;
+}
+
+const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'application/pdf', 'audio/'];
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+const fmtSize = (n: number | null) => {
+    if (!n) return '—';
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const fmtUploadDate = (iso: string | null) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const iconForMime = (mime: string | null) => {
+    if (!mime) return FileText;
+    if (mime.startsWith('image/')) return ImageIcon;
+    if (mime.startsWith('video/')) return Film;
+    if (mime === 'application/pdf') return FileType;
+    if (mime.startsWith('audio/')) return Music;
+    return FileText;
+};
+
+const CopyAssetsView = ({ token }: { token: string }) => {
+    const [uploads, setUploads] = useState<AgentUpload[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [progress, setProgress] = useState<Record<string, number>>({});
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const refresh = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/agents/me/uploads`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || '加载失败');
+            setUploads(data.uploads);
+        } catch (err: any) {
+            setError(err.message || '加载失败');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+    const validate = (file: File): string | null => {
+        const ok = ALLOWED_MIME_PREFIXES.some(p => file.type.startsWith(p) || (p === 'application/pdf' && file.type === p));
+        if (!ok) return `不支持的文件类型: ${file.type || '未知'}`;
+        if (file.size > MAX_UPLOAD_BYTES) return `文件 ${file.name} 超过 100 MB`;
+        return null;
+    };
+
+    const uploadFile = async (file: File) => {
+        const err = validate(file);
+        if (err) { alert(err); return; }
+        const tag = `${file.name}-${Date.now()}`;
+        setProgress(p => ({ ...p, [tag]: 0 }));
+        try {
+            // 1. presign
+            const presignRes = await fetch(`${API_BASE}/api/agents/me/uploads/presign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    filename: file.name,
+                    mime_type: file.type,
+                    size_bytes: file.size,
+                }),
+            });
+            const presignData = await presignRes.json();
+            if (!presignRes.ok) throw new Error(presignData.detail || 'presign 失败');
+
+            // 2. PUT to R2 with progress
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', presignData.upload_url);
+                if (file.type) xhr.setRequestHeader('Content-Type', file.type);
+                xhr.upload.onprogress = (ev) => {
+                    if (ev.lengthComputable) {
+                        const pct = Math.round((ev.loaded / ev.total) * 100);
+                        setProgress(p => ({ ...p, [tag]: pct }));
+                    }
+                };
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve();
+                    else reject(new Error(`R2 PUT 失败 (${xhr.status})`));
+                };
+                xhr.onerror = () => reject(new Error('R2 网络错误'));
+                xhr.send(file);
+            });
+
+            setProgress(p => { const next = { ...p }; delete next[tag]; return next; });
+            await refresh();
+        } catch (err: any) {
+            alert(err.message || '上传失败');
+            setProgress(p => { const next = { ...p }; delete next[tag]; return next; });
+        }
+    };
+
+    const handleFiles = (files: FileList | null) => {
+        if (!files) return;
+        Array.from(files).forEach(f => uploadFile(f));
+    };
+
+    const remove = async (u: AgentUpload) => {
+        if (!confirm(`确认删除 ${u.filename}？`)) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/agents/me/uploads/${u.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error(((await res.json()).detail) || '删除失败');
+            setUploads(prev => prev.filter(x => x.id !== u.id));
+        } catch (err: any) {
+            alert(err.message || '删除失败');
+        }
+    };
+
+    const copyUrl = async (url: string) => {
+        try { await navigator.clipboard.writeText(url); } catch { /* */ }
+    };
+
+    return (
+        <div className="px-6 py-8 lg:px-10">
+            <div className="max-w-5xl">
+                <h1 className="text-2xl font-bold text-slate-900">文案制作</h1>
+                <p className="text-sm text-slate-500 mt-2">上传素材（图片、视频、PDF、音频），最大 100 MB / 文件，可用于宣传素材或客户分享。</p>
+
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        handleFiles(e.dataTransfer.files);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`mt-6 cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
+                        dragOver ? 'border-orange-500 bg-orange-50/60' : 'border-slate-300 bg-slate-50/60 hover:border-slate-400'
+                    }`}
+                >
+                    <Upload size={28} className="mx-auto text-slate-400" />
+                    <p className="mt-3 text-sm font-medium text-slate-900">拖拽文件到此处或点击上传</p>
+                    <p className="mt-1 text-xs text-slate-500">支持 JPG / PNG / MP4 / PDF / MP3，单个最大 100 MB</p>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/*,video/*,audio/*,application/pdf"
+                        className="hidden"
+                        onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+                    />
+                </div>
+
+                {Object.keys(progress).length > 0 && (
+                    <div className="mt-4 space-y-2">
+                        {Object.entries(progress).map(([tag, pct]) => (
+                            <div key={tag} className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                <div className="flex justify-between text-xs text-slate-600 mb-1">
+                                    <span className="truncate">{tag.split('-').slice(0, -1).join('-')}</span>
+                                    <span>{pct}%</span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
+                                    <div className="h-full bg-orange-500 transition-all" style={{ width: `${pct}%` }} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {error && (
+                    <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+                )}
+
+                {!loading && uploads.length === 0 && Object.keys(progress).length === 0 && (
+                    <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+                        <PenLine size={32} className="mx-auto text-slate-300" />
+                        <h3 className="mt-3 text-base font-semibold text-slate-900">还没有素材</h3>
+                        <p className="mt-1 text-sm text-slate-500">上传保险产品介绍图片、宣传视频或客户分享文案。</p>
+                    </div>
+                )}
+
+                {uploads.length > 0 && (
+                    <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                        {uploads.map(u => {
+                            const Icon = iconForMime(u.mime_type);
+                            const isImage = u.mime_type?.startsWith('image/');
+                            return (
+                                <div key={u.id} className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                                    <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden">
+                                        {isImage ? (
+                                            <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <Icon size={36} className="text-slate-400" />
+                                        )}
+                                    </div>
+                                    <div className="px-3 py-2.5">
+                                        <p className="text-sm font-medium text-slate-900 truncate" title={u.filename}>{u.filename}</p>
+                                        <p className="mt-0.5 text-[11px] text-slate-500">{fmtSize(u.size_bytes)} · {fmtUploadDate(u.created_at)}</p>
+                                        <div className="mt-2 flex items-center gap-3 text-xs">
+                                            <button onClick={() => copyUrl(u.public_url)} className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><Copy size={12} /> 复制</button>
+                                            <a href={u.public_url} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ExternalLink size={12} /> 打开</a>
+                                            <button onClick={() => remove(u)} className="ml-auto text-red-600 hover:text-red-700 inline-flex items-center gap-1"><Trash2 size={12} /> 删除</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const ComingSoonView = ({ title, subtitle, icon: Icon }: { title: string; subtitle: string; icon: any }) => (
     <div className="px-6 py-8 lg:px-10">
