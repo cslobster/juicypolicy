@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, Award, Headphones, Heart } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { useAgentAuth } from '../contexts/AgentAuthContext';
 
 const FEATURES = [
     { icon: Sparkles, title: '即时报价', desc: '秒级生成方案，精准匹配最合适的保险产品。' },
@@ -13,6 +15,17 @@ const HERO_IMAGE = 'https://unicorn-images.b-cdn.net/58fd343d-38bc-4708-90c1-4fb
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
+    const { agent, loading: agentLoading } = useAgentAuth();
+
+    // If an agent is already signed in, skip the public landing page
+    // and drop them straight into 代理后台.
+    useEffect(() => {
+        if (!agentLoading && agent) {
+            navigate('/login', { replace: true });
+        }
+    }, [agent, agentLoading, navigate]);
+
+    if (agent) return null;
 
     return (
         <div className="h-full flex flex-col overflow-y-auto bg-white text-slate-900">
