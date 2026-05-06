@@ -1221,9 +1221,36 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                 bl = samples.reduce((a, s) => a + s[2], 0) / samples.length;
             }
             const bg = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(bl)})`;
-            // YIQ luminance for auto-contrast text color
-            const yiq = (r * 299 + g * 587 + bl * 114) / 1000;
-            const fg = yiq >= 140 ? '#1a1a1a' : '#ffffff';
+
+            // Sample the ORIGINAL text color from inside the box: pixels whose
+            // RGB distance from the surrounding bg is large (i.e. the dark
+            // glyph pixels of the existing phone number). Average those.
+            let fg = '#1a1a1a';
+            try {
+                const inside = ctx.getImageData(bx, by, bw, bh).data;
+                let tr = 0, tg = 0, tb = 0, tn = 0;
+                const threshold = 60; // RGB distance from bg to count as "text"
+                for (let i = 0; i < inside.length; i += 4) {
+                    const dr = inside[i] - r;
+                    const dg = inside[i + 1] - g;
+                    const db = inside[i + 2] - bl;
+                    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+                    if (dist > threshold) {
+                        tr += inside[i]; tg += inside[i + 1]; tb += inside[i + 2]; tn++;
+                    }
+                }
+                // Require at least 0.5% of pixels to look like text — guards
+                // against an empty box producing garbage colors.
+                if (tn > inside.length / 4 * 0.005) {
+                    fg = `rgb(${Math.round(tr / tn)}, ${Math.round(tg / tn)}, ${Math.round(tb / tn)})`;
+                } else {
+                    // Fallback: YIQ-based auto-contrast.
+                    const yiq = (r * 299 + g * 587 + bl * 114) / 1000;
+                    fg = yiq >= 140 ? '#1a1a1a' : '#ffffff';
+                }
+            } catch {
+                /* CORS / canvas-tainted — keep default fg */
+            }
 
             // Erase + draw text
             ctx.fillStyle = bg;
@@ -2061,8 +2088,10 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
     const [error, setError] = useState('');
     const [showCreate, setShowCreate] = useState(false);
     const [createForm, setCreateForm] = useState({ username: '', email: '', full_name: '', password: 'test12345', role: 'normal', telephone: '', wechat_id: '' });
+    const [createQrFile, setCreateQrFile] = useState<File | null>(null);
     const [createError, setCreateError] = useState('');
     const [createSubmitting, setCreateSubmitting] = useState(false);
+    const [rowQrUploadingId, setRowQrUploadingId] = useState<number | null>(null);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [edit, setEdit] = useState<{ full_name: string; email: string; role: string; telephone: string; wechat_id: string }>({ full_name: '', email: '', role: 'normal', telephone: '', wechat_id: '' });
     const [editSaving, setEditSaving] = useState(false);
@@ -2082,6 +2111,39 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
 
     useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+    // Upload a WeChat QR for any agent (admin auth). Used by both the create
+    // form (after the agent is created) and the per-row "上传二维码" action.
+    const uploadAgentQr = async (agentId: number, file: File) => {
+        if (!file.type.startsWith('image/')) throw new Error('请上传图片文件');
+        if (file.size > 1024 * 1024) throw new Error('图片大小不能超过 1 MB');
+        const presignRes = await fetch(`${API_BASE}/api/admin/agents/${agentId}/wechat_qr/presign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ filename: file.name, mime_type: file.type, size_bytes: file.size }),
+        });
+        const presignData = await presignRes.json();
+        if (!presignRes.ok) throw new Error(presignData.detail || '预签名失败');
+
+        await new Promise<void>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', presignData.upload_url);
+            xhr.setRequestHeader('Content-Type', file.type);
+            xhr.onload = () => xhr.status >= 200 && xhr.status < 300
+                ? resolve()
+                : reject(new Error(`R2 PUT 失败 (${xhr.status})`));
+            xhr.onerror = () => reject(new Error('R2 网络错误'));
+            xhr.send(file);
+        });
+
+        const confirmRes = await fetch(`${API_BASE}/api/admin/agents/${agentId}/wechat_qr/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ r2_key: presignData.r2_key }),
+        });
+        const confirmData = await confirmRes.json();
+        if (!confirmRes.ok) throw new Error(confirmData.detail || '确认失败');
+    };
+
     const submitCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setCreateError('');
@@ -2094,11 +2156,29 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || '创建失败');
+            // Optionally upload the QR for the freshly-created agent
+            if (createQrFile && data.agent?.id) {
+                try { await uploadAgentQr(data.agent.id, createQrFile); }
+                catch (err: any) { setCreateError(`代理已创建，但二维码上传失败：${err.message}`); }
+            }
             setShowCreate(false);
             setCreateForm({ username: '', email: '', full_name: '', password: 'test12345', role: 'normal', telephone: '', wechat_id: '' });
+            setCreateQrFile(null);
             await refresh();
         } catch (err: any) { setCreateError(err.message || '创建失败'); }
         finally { setCreateSubmitting(false); }
+    };
+
+    const handleRowQrUpload = async (agentId: number, file: File) => {
+        setRowQrUploadingId(agentId);
+        try {
+            await uploadAgentQr(agentId, file);
+            await refresh();
+        } catch (err: any) {
+            alert(err.message || '二维码上传失败');
+        } finally {
+            setRowQrUploadingId(null);
+        }
     };
 
     const startEdit = (a: AdminAgentRow) => {
@@ -2168,10 +2248,32 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
                                     <Input value={createForm.telephone} onChange={e => setCreateForm({ ...createForm, telephone: e.target.value })} /></div>
                                 <div className="sm:col-span-2"><label className="text-xs font-medium text-slate-600 mb-1 block">微信 ID（可选）</label>
                                     <Input value={createForm.wechat_id} onChange={e => setCreateForm({ ...createForm, wechat_id: e.target.value })} /></div>
+                                <div className="sm:col-span-2">
+                                    <label className="text-xs font-medium text-slate-600 mb-1 block">微信二维码（可选）</label>
+                                    <div className="flex items-center gap-3">
+                                        {createQrFile && (
+                                            <img
+                                                src={URL.createObjectURL(createQrFile)}
+                                                alt="QR preview"
+                                                className="w-20 h-20 rounded-lg object-cover border border-slate-200 shrink-0"
+                                            />
+                                        )}
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/webp"
+                                            onChange={e => setCreateQrFile(e.target.files?.[0] || null)}
+                                            className="text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:cursor-pointer hover:file:bg-slate-50"
+                                        />
+                                        {createQrFile && (
+                                            <button type="button" onClick={() => setCreateQrFile(null)} className="text-xs text-red-600 hover:underline">清除</button>
+                                        )}
+                                    </div>
+                                    <p className="mt-1 text-[11px] text-slate-500">PNG / JPG / WebP，最大 1 MB。先创建代理再上传至 R2。</p>
+                                </div>
                                 {createError && <p className="sm:col-span-2 text-sm text-red-600">{createError}</p>}
                                 <div className="sm:col-span-2 flex gap-2">
                                     <Button type="submit" disabled={createSubmitting} size="sm">{createSubmitting ? '创建中...' : '创建'}</Button>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); }}>取消</Button>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowCreate(false); setCreateError(''); setCreateQrFile(null); }}>取消</Button>
                                 </div>
                             </form>
                         </CardContent>
@@ -2211,6 +2313,20 @@ const AdminAgentsView = ({ token, currentAgentId }: { token: string; currentAgen
                                             <td className="px-4 py-3 text-slate-700 text-xs">{a.telephone || '—'}{a.wechat_id ? ` · ${a.wechat_id}` : ''}</td>
                                             <td className="px-4 py-3 text-right whitespace-nowrap">
                                                 <button onClick={() => startEdit(a)} className="text-xs text-orange-600 hover:underline mr-3">编辑</button>
+                                                <label className={`text-xs hover:underline inline-flex items-center gap-1 mr-3 cursor-pointer ${rowQrUploadingId === a.id ? 'text-slate-400' : 'text-slate-600'}`}>
+                                                    <ImageIcon size={11} /> {rowQrUploadingId === a.id ? '上传中…' : '上传二维码'}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp"
+                                                        className="hidden"
+                                                        disabled={rowQrUploadingId === a.id}
+                                                        onChange={e => {
+                                                            const f = e.target.files?.[0];
+                                                            if (f) handleRowQrUpload(a.id, f);
+                                                            e.target.value = '';
+                                                        }}
+                                                    />
+                                                </label>
                                                 <button onClick={() => resetPassword(a.id, a.username)} className="text-xs text-slate-600 hover:underline inline-flex items-center gap-1"><KeyRound size={11} /> 重置密码</button>
                                             </td>
                                         </tr>

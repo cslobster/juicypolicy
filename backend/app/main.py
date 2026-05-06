@@ -1219,6 +1219,61 @@ def admin_create_agent(
     return {"agent": _agent_to_dict(agent), "initial_password": password}
 
 
+@app.post("/api/admin/agents/{agent_id}/wechat_qr/presign")
+def admin_wechat_qr_presign(
+    agent_id: int,
+    req: WeChatQRPresignRequest,
+    _admin: models.Agent = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="未找到此代理")
+    mime = (req.mime_type or "").lower()
+    if mime not in QR_ALLOWED_MIME:
+        raise HTTPException(status_code=400, detail="二维码必须是图片（PNG / JPG / WebP）")
+    if req.size_bytes is not None and req.size_bytes > MAX_QR_R2_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"二维码不能超过 {MAX_QR_R2_BYTES // (1024 * 1024)} MB",
+        )
+    ext_map = {"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp"}
+    ext = ext_map.get(mime, "png")
+    nonce = secrets.token_hex(8)
+    key = f"wechat_qr/{agent_id}-{nonce}.{ext}"
+    upload_url = r2_service.presign_put(key, mime)
+    return {"upload_url": upload_url, "r2_key": key, "expires_in": 600}
+
+
+@app.post("/api/admin/agents/{agent_id}/wechat_qr/confirm")
+def admin_wechat_qr_confirm(
+    agent_id: int,
+    req: WeChatQRConfirmRequest,
+    _admin: models.Agent = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    if not req.r2_key.startswith(f"wechat_qr/{agent_id}-"):
+        raise HTTPException(status_code=400, detail="key 不属于该代理")
+    try:
+        r2_service._client().head_object(Bucket=r2_service.R2_BUCKET, Key=req.r2_key)
+    except Exception:
+        raise HTTPException(status_code=400, detail="R2 中未找到对应文件，上传可能失败")
+    target = db.query(models.Agent).filter(models.Agent.id == agent_id).first()
+    if target is None:
+        raise HTTPException(status_code=404, detail="未找到此代理")
+    old_key = target.wechat_qr_key
+    target.wechat_qr_key = req.r2_key
+    target.wechat_qr = None
+    db.commit()
+    db.refresh(target)
+    if old_key and old_key != req.r2_key:
+        try:
+            r2_service.delete_object(old_key)
+        except Exception:
+            pass
+    return _agent_to_dict(target)
+
+
 @app.patch("/api/admin/agents/{agent_id}")
 def admin_update_agent(
     agent_id: int,
