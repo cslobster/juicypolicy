@@ -2,6 +2,7 @@ import os
 import json
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
@@ -480,6 +481,7 @@ def _agent_to_dict(agent: models.Agent) -> dict:
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
         "wechat_qr": qr,
+        "wechat_qr_key": agent.wechat_qr_key,  # for backend-proxy canvas reads
         "role": agent.role or "normal",
     }
 
@@ -663,6 +665,33 @@ def agent_wechat_qr_confirm(
             pass
 
     return _agent_to_dict(agent)
+
+
+# --- R2 read-through proxy ---
+# Public, unauthenticated: lets the frontend canvas read R2 objects without the
+# bucket needing GET CORS. Keys are random nonces, same security model as
+# presigned GETs. Restricted to known prefixes.
+
+R2_PROXY_PREFIXES = ("wechat_qr/", "agents/")
+
+
+@app.get("/api/r2/file/{r2_key:path}")
+def r2_file_proxy(r2_key: str):
+    if not r2_key.startswith(R2_PROXY_PREFIXES):
+        raise HTTPException(status_code=403, detail="Forbidden key prefix")
+    try:
+        obj = r2_service._client().get_object(
+            Bucket=r2_service.R2_BUCKET, Key=r2_key
+        )
+    except Exception:
+        raise HTTPException(status_code=404, detail="Not found")
+    body = obj["Body"].read()
+    content_type = obj.get("ContentType") or "application/octet-stream"
+    return Response(
+        content=body,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.get("/api/agents/me/quotes")

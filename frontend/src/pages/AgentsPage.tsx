@@ -1009,8 +1009,14 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
     const [showLibrary, setShowLibrary] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // For canvas reads, route R2-hosted images through the FastAPI proxy so the
+    // browser sees Access-Control-Allow-Origin from our own origin (no R2 CORS).
+    const r2Proxy = (key: string) => `${API_BASE}/api/r2/file/${key}`;
+
     const wechatQrAvailable = !!agent.wechat_qr;
-    const qrSrc = qrSource === 'marketing' ? marketingQrUrl : agent.wechat_qr;
+    const qrSrc = qrSource === 'marketing'
+        ? marketingQrUrl
+        : (agent.wechat_qr_key ? r2Proxy(agent.wechat_qr_key) : agent.wechat_qr);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -1204,7 +1210,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                     <button
                                         key={u.id}
                                         type="button"
-                                        onClick={() => { loadPoster(u.public_url); setShowLibrary(false); }}
+                                        onClick={() => { loadPoster(r2Proxy(u.r2_key)); setShowLibrary(false); }}
                                         className="aspect-[3/4] rounded-md overflow-hidden bg-slate-100 hover:ring-2 hover:ring-orange-400"
                                         title={u.filename}
                                     >
@@ -1331,6 +1337,7 @@ interface AgentUpload {
     filename: string;
     mime_type: string | null;
     size_bytes: number | null;
+    r2_key: string;
     public_url: string;
     label: string | null;
     is_shared: boolean;
