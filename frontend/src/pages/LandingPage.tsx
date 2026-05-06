@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles, Award, Headphones, Heart } from 'lucide-react';
+import { ArrowRight, Sparkles, Award, Headphones, Heart, LayoutDashboard } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { useAgentAuth } from '../contexts/AgentAuthContext';
 
@@ -15,17 +14,7 @@ const HERO_IMAGE = 'https://unicorn-images.b-cdn.net/58fd343d-38bc-4708-90c1-4fb
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
-    const { agent, loading: agentLoading } = useAgentAuth();
-
-    // If an agent is already signed in, skip the public landing page
-    // and drop them straight into 代理后台.
-    useEffect(() => {
-        if (!agentLoading && agent) {
-            navigate('/login', { replace: true });
-        }
-    }, [agent, agentLoading, navigate]);
-
-    if (agent) return null;
+    const { agent } = useAgentAuth();
 
     return (
         <div className="h-full flex flex-col overflow-y-auto bg-white text-slate-900">
@@ -48,6 +37,17 @@ const LandingPage: React.FC = () => {
                                 开始报价
                                 <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
+                            {agent && (
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    onClick={() => navigate('/login')}
+                                    className="h-11 rounded-lg px-5 text-base border-orange-300 text-orange-700 hover:bg-orange-50"
+                                >
+                                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                                    代理后台
+                                </Button>
+                            )}
                         </div>
                     </div>
                     <div className="relative mx-auto hidden w-full max-w-[420px] sm:block lg:max-w-[460px] lg:justify-self-end">
