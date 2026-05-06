@@ -100,7 +100,7 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                         />
                     )}
                 </div>
-                {/* Mobile: tappable phone + scannable QR */}
+                {/* Mobile: tappable phone only — QR hidden to keep the bar compact */}
                 <div className="md:hidden flex items-center gap-2.5">
                     {agent?.telephone && (
                         <a
@@ -110,14 +110,6 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                             <Phone size={15} className="text-orange-300" />
                             {agent.telephone}
                         </a>
-                    )}
-                    {qrSrc && (
-                        <img
-                            src={qrSrc}
-                            alt={agent ? `${agent.full_name} QR` : 'QR'}
-                            className="h-16 w-16 rounded-md bg-white p-0.5 shrink-0"
-                            title="扫码联系顾问"
-                        />
                     )}
                 </div>
             </div>
