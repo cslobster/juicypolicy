@@ -46,7 +46,10 @@ app = FastAPI(title="JuicyPolicy API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    # We use Bearer tokens, not cookies; allow_credentials=False forces the
+    # middleware to echo Access-Control-Allow-Origin: * (instead of the
+    # specific Origin), which is the form anonymous <img crossorigin> wants.
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
