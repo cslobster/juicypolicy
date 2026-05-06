@@ -926,20 +926,33 @@ const HealthEnrollWidget: React.FC<{ plan: HealthPlan; onSubmit: (text: string, 
 
     // On mount, scroll the form into view at the top of its scroll container
     // (so users — especially on mobile — land on 个人信息, not at the bottom).
+    // The chat pane's auto-scroll-to-bottom also fires whenever messages change,
+    // so we run our scroll-to-top a little later (twice via rAF) to win the race.
     useEffect(() => {
-        const el = widgetRootRef.current;
-        if (!el) return;
-        // Find nearest scrollable ancestor and scroll it so the widget's top is visible
-        let parent: HTMLElement | null = el.parentElement;
-        while (parent) {
-            const overflow = window.getComputedStyle(parent).overflowY;
-            if (overflow === 'auto' || overflow === 'scroll') {
-                parent.scrollTo({ top: el.offsetTop - parent.offsetTop, behavior: 'smooth' });
-                return;
+        const scrollToTop = () => {
+            const el = widgetRootRef.current;
+            if (!el) return;
+            let parent: HTMLElement | null = el.parentElement;
+            while (parent) {
+                const overflow = window.getComputedStyle(parent).overflowY;
+                if (overflow === 'auto' || overflow === 'scroll') {
+                    parent.scrollTop = 0;
+                    return;
+                }
+                parent = parent.parentElement;
             }
-            parent = parent.parentElement;
-        }
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            el.scrollIntoView({ block: 'start' });
+        };
+        // Two-frame delay so the chat's bottom-scroll effect runs first, then we override.
+        const r1 = requestAnimationFrame(() => {
+            const r2 = requestAnimationFrame(scrollToTop);
+            (scrollToTop as any)._r2 = r2;
+        });
+        return () => {
+            cancelAnimationFrame(r1);
+            const r2 = (scrollToTop as any)._r2;
+            if (r2) cancelAnimationFrame(r2);
+        };
     }, []);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1723,6 +1736,10 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
     const [residence, setResidence] = useState('');
 
     useEffect(() => {
+        // If the latest message hosts an interactive widget (form-style), don't
+        // auto-scroll to the bottom — the widget controls its own scroll.
+        const last = messages[messages.length - 1];
+        if (last?.interactiveWidget) return;
         if (bottomRef.current) {
             bottomRef.current.scrollIntoView({ behavior: 'smooth' });
         }
