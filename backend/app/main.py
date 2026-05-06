@@ -621,10 +621,11 @@ def agent_wechat_qr_presign(
     if req.size_bytes is not None and req.size_bytes > MAX_QR_R2_BYTES:
         raise HTTPException(status_code=413, detail=f"二维码不能超过 {MAX_QR_R2_BYTES // (1024 * 1024)} MB")
 
-    # Use a per-agent prefix so the cleanup logic can find old QRs
+    # All QR codes share a single top-level folder; agent_id is encoded in the filename.
+    ext_map = {"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/webp": "webp"}
+    ext = ext_map.get(mime, "png")
     nonce = secrets.token_hex(8)
-    safe = "".join(c if c.isalnum() or c in ".-_" else "_" for c in req.filename)
-    key = f"agents/{agent_id}/wechat_qr/{nonce}-{safe}"
+    key = f"wechat_qr/{agent_id}-{nonce}.{ext}"
     upload_url = r2_service.presign_put(key, mime)
     return {"upload_url": upload_url, "r2_key": key, "expires_in": 600}
 
@@ -639,7 +640,7 @@ def agent_wechat_qr_confirm(
     agent_id: int = Depends(require_agent),
     db: Session = Depends(get_db),
 ):
-    if not req.r2_key.startswith(f"agents/{agent_id}/wechat_qr/"):
+    if not req.r2_key.startswith(f"wechat_qr/{agent_id}-"):
         raise HTTPException(status_code=400, detail="key 不属于当前代理")
     # Verify the object actually landed
     try:
