@@ -1095,8 +1095,8 @@ const CopyAssetsView = ({ token }: { token: string }) => {
                                 <div key={u.id} className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
                                     <div
                                         className={`aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden ${canPreview ? 'cursor-zoom-in select-none' : ''}`}
-                                        onDoubleClick={() => canPreview && setPreviewing(u)}
-                                        title={canPreview ? '双击预览' : undefined}
+                                        onClick={() => canPreview && setPreviewing(u)}
+                                        title={canPreview ? '点击预览' : undefined}
                                     >
                                         {isImage ? (
                                             <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" draggable={false} />
