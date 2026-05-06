@@ -981,6 +981,27 @@ const MarketingView = ({ agent, token }: any) => {
 
 // ---------- Poster editor: pick a poster, drop the agent's QR onto it, download ----------
 
+type SavedAlignment = {
+    qr: { x: number; y: number; size: number };
+    qrSource: 'marketing' | 'wechat';
+    phone: { enabled: boolean; text: string; x: number; y: number; w: number; h: number };
+    v: number;
+};
+
+const readSavedAlignment = (posterId: string): SavedAlignment | null => {
+    try {
+        const raw = localStorage.getItem(`jp_poster_align:${posterId}`);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (data?.v !== 1) return null;
+        // Defensive sanity check on the shape
+        if (typeof data.qr?.x !== 'number') return null;
+        return data as SavedAlignment;
+    } catch {
+        return null;
+    }
+};
+
 interface PosterEditorProps {
     agent: any;
     marketingQrUrl: string;
@@ -1006,6 +1027,11 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
     const [phoneEnabled, setPhoneEnabled] = useState(false);
     const [phoneText, setPhoneText] = useState<string>(agent?.telephone || '');
     const [phoneBox, setPhoneBox] = useState({ x: 0.06, y: 0.9, w: 0.32, h: 0.05 });
+    // Stable per-poster id used to remember manual alignment in localStorage.
+    // Library: r2:<r2_key>; local upload: file:<name>:<size>.
+    const [posterId, setPosterId] = useState<string | null>(null);
+    // Skip the next save when we just hydrated from storage (avoids no-op writes).
+    const skipNextSaveRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // For canvas reads, route R2-hosted images through the FastAPI proxy so the
@@ -1024,17 +1050,35 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
         return () => window.removeEventListener('keydown', onKey);
     }, [onClose]);
 
+    // Persist manual alignment per poster id. Hydrated in loadPoster.
+    useEffect(() => {
+        if (!posterId) return;
+        if (skipNextSaveRef.current) {
+            skipNextSaveRef.current = false;
+            return;
+        }
+        try {
+            const payload = {
+                qr: qrBox,
+                qrSource,
+                phone: { enabled: phoneEnabled, text: phoneText, ...phoneBox },
+                v: 1,
+            };
+            localStorage.setItem(`jp_poster_align:${posterId}`, JSON.stringify(payload));
+        } catch { /* quota / disabled — silent */ }
+    }, [posterId, qrBox, qrSource, phoneEnabled, phoneText, phoneBox]);
+
     const onPosterFile = (file: File) => {
         if (!file.type.startsWith('image/')) { setError('请选择图片文件'); return; }
         if (file.size > 10 * 1024 * 1024) { setError('图片不能超过 10 MB'); return; }
         setError('');
         const reader = new FileReader();
-        reader.onload = () => loadPoster(reader.result as string);
+        reader.onload = () => loadPoster(reader.result as string, `file:${file.name}:${file.size}`);
         reader.onerror = () => setError('读取图片失败');
         reader.readAsDataURL(file);
     };
 
-    const loadPoster = (src: string) => {
+    const loadPoster = (src: string, id: string) => {
         const img = new Image();
         // Only set crossOrigin for true cross-origin URLs. Setting it on a
         // data: URL trips Safari, and same-origin URLs don't need it.
@@ -1042,10 +1086,23 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
         img.onload = () => {
             setPosterSrc(src);
             setPosterDims({ w: img.naturalWidth, h: img.naturalHeight });
-            const size = 0.22;
-            const aspectWoverH = img.naturalWidth / img.naturalHeight;
-            const sizeYFrac = size * aspectWoverH;
-            setQrBox({ x: (1 - size) / 2, y: Math.min(0.95 - sizeYFrac, 0.7), size });
+            setPosterId(id);
+            // Hydrate manual alignment from localStorage if we have it for
+            // this poster, otherwise fall back to a sensible default.
+            const saved = readSavedAlignment(id);
+            skipNextSaveRef.current = true;
+            if (saved) {
+                setQrBox(saved.qr);
+                setPhoneEnabled(saved.phone.enabled);
+                setPhoneBox({ x: saved.phone.x, y: saved.phone.y, w: saved.phone.w, h: saved.phone.h });
+                if (saved.phone.text) setPhoneText(saved.phone.text);
+                if (saved.qrSource === 'marketing' || saved.qrSource === 'wechat') setQrSource(saved.qrSource);
+            } else {
+                const size = 0.22;
+                const aspectWoverH = img.naturalWidth / img.naturalHeight;
+                const sizeYFrac = size * aspectWoverH;
+                setQrBox({ x: (1 - size) / 2, y: Math.min(0.95 - sizeYFrac, 0.7), size });
+            }
         };
         img.onerror = () => {
             let host = '';
@@ -1528,7 +1585,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                     <button
                                         key={u.id}
                                         type="button"
-                                        onClick={() => { loadPoster(r2Proxy(u.r2_key)); setShowLibrary(false); }}
+                                        onClick={() => { loadPoster(r2Proxy(u.r2_key), `r2:${u.r2_key}`); setShowLibrary(false); }}
                                         className="aspect-[3/4] rounded-md overflow-hidden bg-slate-100 hover:ring-2 hover:ring-orange-400"
                                         title={u.filename}
                                     >
