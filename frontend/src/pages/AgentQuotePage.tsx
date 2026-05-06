@@ -77,6 +77,7 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                         )}
                     </div>
                 </div>
+                {/* Desktop: phone + address column, with small QR */}
                 <div className="hidden md:flex items-center gap-4">
                     <div className="flex flex-col items-end gap-0.5 text-[11px] text-white/85 leading-tight">
                         {agent?.telephone ? (
@@ -99,14 +100,26 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                         />
                     )}
                 </div>
-            </div>
-            {agent?.telephone && (
-                <div className="md:hidden border-t border-white/10 px-4 pb-2 pt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/85">
-                    <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1">
-                        <Phone size={11} className="text-orange-300" /> {agent.telephone}
-                    </a>
+                {/* Mobile: phone + larger QR (scannable) */}
+                <div className="md:hidden flex items-center gap-2.5">
+                    {agent?.telephone && (
+                        <a
+                            href={`tel:${agent.telephone}`}
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-white/90 hover:text-white"
+                        >
+                            <Phone size={12} className="text-orange-300" /> {agent.telephone}
+                        </a>
+                    )}
+                    {qrSrc && (
+                        <img
+                            src={qrSrc}
+                            alt={agent ? `${agent.full_name} QR` : 'QR'}
+                            className="h-16 w-16 rounded-md bg-white p-0.5 shrink-0"
+                            title="扫码联系顾问"
+                        />
+                    )}
                 </div>
-            )}
+            </div>
         </header>
     );
 };
