@@ -313,10 +313,13 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
         setError('');
         setSaving(true);
         try {
+            // wechat_qr is managed by its own presign/confirm endpoints — don't ship it here.
+            const { wechat_qr: _ignored, ...profileDraft } = draft;
+            void _ignored;
             const res = await fetch(`${API_BASE}/api/agents/me`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(draft),
+                body: JSON.stringify(profileDraft),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || '保存失败');
@@ -326,14 +329,49 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
         finally { setSaving(false); }
     };
 
+    const [qrUploading, setQrUploading] = useState(false);
     const handleQrFile = async (file: File) => {
         if (!file.type.startsWith('image/')) { setError('请上传图片文件'); return; }
-        if (file.size > 600 * 1024) { setError('图片大小不能超过 600KB'); return; }
+        if (file.size > 1024 * 1024) { setError('图片大小不能超过 1 MB'); return; }
         setError('');
-        const reader = new FileReader();
-        reader.onload = () => setDraft({ ...draft, wechat_qr: reader.result as string });
-        reader.onerror = () => setError('无法读取图片');
-        reader.readAsDataURL(file);
+        setQrUploading(true);
+        try {
+            // 1. presign
+            const presignRes = await fetch(`${API_BASE}/api/agents/me/wechat_qr/presign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ filename: file.name, mime_type: file.type, size_bytes: file.size }),
+            });
+            const presignData = await presignRes.json();
+            if (!presignRes.ok) throw new Error(presignData.detail || 'presign 失败');
+
+            // 2. PUT to R2
+            await new Promise<void>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('PUT', presignData.upload_url);
+                xhr.setRequestHeader('Content-Type', file.type);
+                xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`R2 PUT 失败 (${xhr.status})`));
+                xhr.onerror = () => reject(new Error('R2 网络错误'));
+                xhr.send(file);
+            });
+
+            // 3. confirm — backend HEADs the object, swaps in the new R2 key, deletes the old
+            const confirmRes = await fetch(`${API_BASE}/api/agents/me/wechat_qr/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ r2_key: presignData.r2_key }),
+            });
+            const confirmData = await confirmRes.json();
+            if (!confirmRes.ok) throw new Error(confirmData.detail || '确认失败');
+
+            // 4. update local draft + propagate the fresh agent (with signed wechat_qr URL) up
+            setDraft(d => ({ ...d, wechat_qr: confirmData.wechat_qr || '' }));
+            onUpdate(confirmData);
+        } catch (err: any) {
+            setError(err.message || '上传失败');
+        } finally {
+            setQrUploading(false);
+        }
     };
 
     return (
@@ -370,15 +408,33 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
                                 <div className="flex-1 space-y-2">
                                     <input
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/png,image/jpeg,image/webp"
+                                        disabled={qrUploading}
                                         onChange={e => e.target.files?.[0] && handleQrFile(e.target.files[0])}
-                                        className="text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:cursor-pointer hover:file:bg-slate-50"
+                                        className="text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:cursor-pointer hover:file:bg-slate-50 disabled:opacity-60"
                                     />
-                                    <p className="text-[11px] text-slate-500">支持 JPG/PNG，建议小于 600KB。</p>
-                                    {draft.wechat_qr && (
+                                    <p className="text-[11px] text-slate-500">
+                                        {qrUploading ? '上传中…' : '支持 PNG / JPG / WebP，最大 1 MB。上传到 Cloudflare R2。'}
+                                    </p>
+                                    {draft.wechat_qr && !qrUploading && (
                                         <button
                                             type="button"
-                                            onClick={() => setDraft({ ...draft, wechat_qr: '' })}
+                                            onClick={async () => {
+                                                if (!confirm('确认移除当前二维码？')) return;
+                                                try {
+                                                    const res = await fetch(`${API_BASE}/api/agents/me`, {
+                                                        method: 'PATCH',
+                                                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                                        body: JSON.stringify({ wechat_qr: '' }),
+                                                    });
+                                                    const data = await res.json();
+                                                    if (!res.ok) throw new Error(data.detail || '删除失败');
+                                                    setDraft(d => ({ ...d, wechat_qr: '' }));
+                                                    onUpdate(data);
+                                                } catch (err: any) {
+                                                    alert(err.message || '删除失败');
+                                                }
+                                            }}
                                             className="text-xs text-red-600 hover:underline"
                                         >
                                             移除二维码

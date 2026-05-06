@@ -9,8 +9,10 @@ from dotenv import load_dotenv
 from google import genai
 
 import re
+import secrets
 
 from . import models
+from . import r2_service
 from .schemas import QuoteRequest, QuoteCreateResponse, QuoteStatusResponse
 from .database import engine, get_db
 from .quote_service import convert_quote_text_to_json
@@ -462,6 +464,14 @@ MAX_QR_BYTES = 800_000  # ~600 KB after base64 overhead
 
 
 def _agent_to_dict(agent: models.Agent) -> dict:
+    qr = agent.wechat_qr  # legacy data URL fallback
+    if agent.wechat_qr_key:
+        # Prefer R2: regenerate a fresh signed URL each call so it never goes
+        # stale. (R2 max sign expiry is 7 days; we use 6.)
+        try:
+            qr = r2_service.presign_get(agent.wechat_qr_key, expires_seconds=60 * 60 * 24 * 6)
+        except Exception:
+            pass
     return {
         "id": agent.id,
         "username": agent.username,
@@ -469,7 +479,7 @@ def _agent_to_dict(agent: models.Agent) -> dict:
         "full_name": agent.full_name,
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
-        "wechat_qr": agent.wechat_qr,
+        "wechat_qr": qr,
         "role": agent.role or "normal",
     }
 
@@ -571,15 +581,86 @@ def agent_update_me(
     if req.wechat_qr is not None:
         v = req.wechat_qr.strip()
         if not v:
+            # Clear both the legacy data-URL and the R2 key (and delete the R2 object).
+            if agent.wechat_qr_key:
+                try:
+                    r2_service.delete_object(agent.wechat_qr_key)
+                except Exception:
+                    pass
+                agent.wechat_qr_key = None
             agent.wechat_qr = None
-        else:
-            if not v.startswith("data:image/"):
-                raise HTTPException(status_code=400, detail="二维码必须是图片（data URL）")
+        elif v.startswith("data:image/"):
             if len(v) > MAX_QR_BYTES:
                 raise HTTPException(status_code=413, detail="二维码图片过大，请上传小于 600KB 的图片")
             agent.wechat_qr = v
     db.commit()
     db.refresh(agent)
+    return _agent_to_dict(agent)
+
+
+# --- WeChat QR upload via R2 ---
+
+QR_ALLOWED_MIME = ("image/png", "image/jpeg", "image/jpg", "image/webp")
+MAX_QR_R2_BYTES = 1 * 1024 * 1024  # 1 MB cap (small QR images)
+
+
+class WeChatQRPresignRequest(BaseModel):
+    filename: str
+    mime_type: str
+    size_bytes: Optional[int] = None
+
+
+@app.post("/api/agents/me/wechat_qr/presign")
+def agent_wechat_qr_presign(
+    req: WeChatQRPresignRequest,
+    agent_id: int = Depends(require_agent),
+):
+    mime = (req.mime_type or "").lower()
+    if mime not in QR_ALLOWED_MIME:
+        raise HTTPException(status_code=400, detail="二维码必须是图片（PNG / JPG / WebP）")
+    if req.size_bytes is not None and req.size_bytes > MAX_QR_R2_BYTES:
+        raise HTTPException(status_code=413, detail=f"二维码不能超过 {MAX_QR_R2_BYTES // (1024 * 1024)} MB")
+
+    # Use a per-agent prefix so the cleanup logic can find old QRs
+    nonce = secrets.token_hex(8)
+    safe = "".join(c if c.isalnum() or c in ".-_" else "_" for c in req.filename)
+    key = f"agents/{agent_id}/wechat_qr/{nonce}-{safe}"
+    upload_url = r2_service.presign_put(key, mime)
+    return {"upload_url": upload_url, "r2_key": key, "expires_in": 600}
+
+
+class WeChatQRConfirmRequest(BaseModel):
+    r2_key: str
+
+
+@app.post("/api/agents/me/wechat_qr/confirm")
+def agent_wechat_qr_confirm(
+    req: WeChatQRConfirmRequest,
+    agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    if not req.r2_key.startswith(f"agents/{agent_id}/wechat_qr/"):
+        raise HTTPException(status_code=400, detail="key 不属于当前代理")
+    # Verify the object actually landed
+    try:
+        r2_service._client().head_object(Bucket=r2_service.R2_BUCKET, Key=req.r2_key)
+    except Exception:
+        raise HTTPException(status_code=400, detail="R2 中未找到对应文件，上传可能失败")
+
+    agent = get_current_agent(db, agent_id)
+    # Delete the previous QR (if any) so we don't leak storage
+    old_key = agent.wechat_qr_key
+    agent.wechat_qr_key = req.r2_key
+    agent.wechat_qr = None  # legacy data URL is replaced
+    db.commit()
+    db.refresh(agent)
+
+    if old_key and old_key != req.r2_key:
+        try:
+            r2_service.delete_object(old_key)
+        except Exception:
+            pass
+
     return _agent_to_dict(agent)
 
 
@@ -761,8 +842,6 @@ def agent_delete_quote(
 
 
 # --- Uploads (R2) ---
-
-from . import r2_service
 
 ALLOWED_UPLOAD_MIME_PREFIXES = ("image/", "video/", "application/pdf", "audio/")
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB per file
