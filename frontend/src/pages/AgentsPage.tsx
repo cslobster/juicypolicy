@@ -999,6 +999,12 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
     const [showLibrary, setShowLibrary] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewLoading, setPreviewLoading] = useState(false);
+    // Phone overlay: drag/resize a transparent rectangle over the existing
+    // phone area; the canvas renderer auto-fills it with the average edge
+    // color (a poor man's "erase") and re-draws the agent's phone on top.
+    const [phoneEnabled, setPhoneEnabled] = useState(false);
+    const [phoneText, setPhoneText] = useState<string>(agent?.telephone || '');
+    const [phoneBox, setPhoneBox] = useState({ x: 0.06, y: 0.9, w: 0.32, h: 0.05 });
     const containerRef = useRef<HTMLDivElement>(null);
 
     // For canvas reads, route R2-hosted images through the FastAPI proxy so the
@@ -1105,6 +1111,56 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
         window.addEventListener('pointerup', onUp);
     };
 
+    // Phone-box drag (move) — rectangle, not square
+    const startMovePhone = (e: React.PointerEvent) => {
+        if (!containerRef.current) return;
+        e.preventDefault(); e.stopPropagation();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        const rect = containerRef.current.getBoundingClientRect();
+        const startBox = { ...phoneBox };
+        const startX = e.clientX, startY = e.clientY;
+        const onMove = (ev: PointerEvent) => {
+            const dx = (ev.clientX - startX) / rect.width;
+            const dy = (ev.clientY - startY) / rect.height;
+            setPhoneBox(prev => ({
+                ...prev,
+                x: Math.max(0, Math.min(1 - prev.w, startBox.x + dx)),
+                y: Math.max(0, Math.min(1 - prev.h, startBox.y + dy)),
+            }));
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
+
+    // Phone-box resize (corner handle) — independent w/h
+    const startResizePhone = (e: React.PointerEvent) => {
+        if (!containerRef.current) return;
+        e.preventDefault(); e.stopPropagation();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        const rect = containerRef.current.getBoundingClientRect();
+        const startBox = { ...phoneBox };
+        const startX = e.clientX, startY = e.clientY;
+        const onMove = (ev: PointerEvent) => {
+            const dx = (ev.clientX - startX) / rect.width;
+            const dy = (ev.clientY - startY) / rect.height;
+            setPhoneBox(prev => ({
+                ...prev,
+                w: Math.max(0.05, Math.min(1 - startBox.x, startBox.w + dx)),
+                h: Math.max(0.02, Math.min(1 - startBox.y, startBox.h + dy)),
+            }));
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
+
     const loadImg = (src: string) =>
         new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
@@ -1128,6 +1184,67 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
         if (!ctx) throw new Error('Canvas 不可用');
         ctx.drawImage(posterImg, 0, 0);
 
+        // Phone overlay: erase the existing phone area with a sampled edge
+        // color, then draw the agent's phone in an auto-contrast color.
+        if (phoneEnabled && phoneText) {
+            const bx = Math.round(phoneBox.x * canvas.width);
+            const by = Math.round(phoneBox.y * canvas.height);
+            const bw = Math.max(1, Math.round(phoneBox.w * canvas.width));
+            const bh = Math.max(1, Math.round(phoneBox.h * canvas.height));
+
+            // Sample a thin ring just OUTSIDE the box: top, bottom, left, right
+            // of widths between 1px and ~8% of the box's smaller dimension.
+            const ringPx = Math.max(2, Math.min(Math.floor(Math.min(bw, bh) * 0.08), 16));
+            const sampleRect = (sx: number, sy: number, sw: number, sh: number) => {
+                sx = Math.max(0, Math.min(canvas.width - 1, sx));
+                sy = Math.max(0, Math.min(canvas.height - 1, sy));
+                sw = Math.max(0, Math.min(canvas.width - sx, sw));
+                sh = Math.max(0, Math.min(canvas.height - sy, sh));
+                if (sw <= 0 || sh <= 0) return null;
+                const data = ctx.getImageData(sx, sy, sw, sh).data;
+                let r = 0, g = 0, b = 0, n = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+                }
+                return n ? [r / n, g / n, b / n] as const : null;
+            };
+            const samples = [
+                sampleRect(bx, Math.max(0, by - ringPx), bw, ringPx),                // top
+                sampleRect(bx, by + bh, bw, ringPx),                                  // bottom
+                sampleRect(Math.max(0, bx - ringPx), by, ringPx, bh),                 // left
+                sampleRect(bx + bw, by, ringPx, bh),                                  // right
+            ].filter((s): s is readonly [number, number, number] => !!s);
+            let r = 255, g = 255, bl = 255;
+            if (samples.length) {
+                r = samples.reduce((a, s) => a + s[0], 0) / samples.length;
+                g = samples.reduce((a, s) => a + s[1], 0) / samples.length;
+                bl = samples.reduce((a, s) => a + s[2], 0) / samples.length;
+            }
+            const bg = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(bl)})`;
+            // YIQ luminance for auto-contrast text color
+            const yiq = (r * 299 + g * 587 + bl * 114) / 1000;
+            const fg = yiq >= 140 ? '#1a1a1a' : '#ffffff';
+
+            // Erase + draw text
+            ctx.fillStyle = bg;
+            ctx.fillRect(bx, by, bw, bh);
+
+            ctx.fillStyle = fg;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            // Auto-fit font size to box dims
+            let fontPx = Math.floor(bh * 0.72);
+            const fontFamily = '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+            const maxTextW = bw * 0.94;
+            while (fontPx > 6) {
+                ctx.font = `bold ${fontPx}px ${fontFamily}`;
+                if (ctx.measureText(phoneText).width <= maxTextW) break;
+                fontPx -= 2;
+            }
+            ctx.fillText(phoneText, bx + bw / 2, by + bh / 2);
+        }
+
+        // QR overlay
         const px = qrBox.x * canvas.width;
         const py = qrBox.y * canvas.height;
         const ps = qrBox.size * canvas.width;
@@ -1192,7 +1309,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             setPreviewUrl(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [posterSrc, qrSource, qrBox.x, qrBox.y, qrBox.size]);
+    }, [posterSrc, qrSource, qrBox.x, qrBox.y, qrBox.size, phoneEnabled, phoneText, phoneBox.x, phoneBox.y, phoneBox.w, phoneBox.h]);
 
     return (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
@@ -1288,7 +1405,27 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                             </div>
 
                             <div>
-                                <p className="text-xs font-medium text-slate-700 mb-2">3. 拖动方框定位（右下角小方块可调整大小）</p>
+                                <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                    <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+                                        <input
+                                            type="checkbox"
+                                            checked={phoneEnabled}
+                                            onChange={e => setPhoneEnabled(e.target.checked)}
+                                            className="h-3.5 w-3.5 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                                        />
+                                        覆盖海报上的电话号码
+                                    </label>
+                                    {phoneEnabled && (
+                                        <input
+                                            type="text"
+                                            value={phoneText}
+                                            onChange={e => setPhoneText(e.target.value)}
+                                            placeholder="电话号码"
+                                            className="text-xs px-2 py-1 rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-orange-400 w-44"
+                                        />
+                                    )}
+                                </div>
+                                <p className="text-xs font-medium text-slate-700 mb-2">拖动方框定位二维码与电话号码（右下角小方块可调整大小）</p>
                                 <div
                                     ref={containerRef}
                                     className="relative w-full mx-auto bg-slate-100 rounded-lg overflow-hidden select-none touch-none"
@@ -1300,6 +1437,35 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                         className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                                         draggable={false}
                                     />
+                                    {/* Phone-overlay box: transparent rectangle with the phone text centered. */}
+                                    {phoneEnabled && (
+                                        <div
+                                            className="absolute border-2 border-dashed border-blue-500 shadow-[0_0_0_2px_rgba(255,255,255,0.6)] cursor-move flex items-center justify-center"
+                                            style={{
+                                                left: `${phoneBox.x * 100}%`,
+                                                top: `${phoneBox.y * 100}%`,
+                                                width: `${phoneBox.w * 100}%`,
+                                                height: `${phoneBox.h * 100}%`,
+                                                touchAction: 'none',
+                                                containerType: 'size',
+                                            }}
+                                            onPointerDown={startMovePhone}
+                                            title="拖动到电话号码上方"
+                                        >
+                                            <span
+                                                className="font-bold text-blue-700 whitespace-nowrap pointer-events-none select-none drop-shadow-[0_1px_0_rgba(255,255,255,0.9)]"
+                                                style={{ fontSize: '70cqh' }}
+                                            >
+                                                {phoneText || '电话'}
+                                            </span>
+                                            <div
+                                                onPointerDown={startResizePhone}
+                                                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-sm bg-blue-500 border-2 border-white cursor-se-resize"
+                                                style={{ touchAction: 'none' }}
+                                                title="调整大小"
+                                            />
+                                        </div>
+                                    )}
                                     <div
                                         className="absolute border-2 border-orange-500 shadow-[0_0_0_2px_rgba(255,255,255,0.6)] cursor-move bg-white/30"
                                         style={{
@@ -1329,7 +1495,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                     </div>
                                 </div>
                                 <p className="text-[11px] text-slate-500 mt-2">
-                                    海报原始尺寸 {posterDims.w} × {posterDims.h}px。下载图片为同尺寸 PNG。
+                                    海报原始尺寸 {posterDims.w} × {posterDims.h}px。下载图片为同尺寸 PNG。{phoneEnabled ? ' 电话号码方框（蓝色虚线）会自动取周围颜色覆盖原号码。' : ''}
                                 </p>
                             </div>
                         </>
