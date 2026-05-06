@@ -1267,17 +1267,27 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                 messages.push('未检测到二维码');
             }
 
-            // 2. Phone-number detection: look for rows containing a horizontal
-            // run of dark pixels that's long and short — typical phone band.
-            // We binarize, project rows, find row clusters; for each, find the
-            // widest contiguous horizontal run of dark pixels.
+            // 2. Phone-number detection — contrast-based so it works for
+            // light-on-dark text too (e.g., red/white digits on a maroon band).
+            // For each pixel, mark as "ink" if its grayscale differs from the
+            // pixel 4 columns away by > 35 — text edges always have such jumps,
+            // regardless of polarity, and uniform backgrounds don't.
             const W = data.width, H = data.height;
             const px = data.data;
             const dark = new Uint8Array(W * H);
-            // Threshold: pixel is "ink" if its grayscale < 130
+            const gray = new Float32Array(W * H);
             for (let i = 0, p = 0; i < px.length; i += 4, p++) {
-                const gray = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-                dark[p] = gray < 130 ? 1 : 0;
+                gray[p] = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+            }
+            const STEP = 4;
+            const EDGE_THRESH = 35;
+            for (let y = 0; y < H; y++) {
+                const off = y * W;
+                for (let x = STEP; x < W; x++) {
+                    if (Math.abs(gray[off + x] - gray[off + x - STEP]) > EDGE_THRESH) {
+                        dark[off + x] = 1;
+                    }
+                }
             }
             // Per-row dark count
             const rowCount = new Uint32Array(H);
@@ -1291,8 +1301,8 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             // Typical phone height: 1.5%–8% of poster height. We look in the
             // bottom 60% of the poster (phones almost always live near footer).
             const startY = Math.floor(H * 0.4);
-            const minDark = W * 0.02;   // at least 2% of row pixels are ink
-            const maxDark = W * 0.4;    // less than 40% (else it's a stripe)
+            const minDark = W * 0.015;  // at least 1.5% of row pixels are edges
+            const maxDark = W * 0.45;   // less than 45% (else it's noisy graphics)
             // Find candidate row bands
             const bands: { y0: number; y1: number }[] = [];
             let bandStart = -1;
@@ -1317,16 +1327,28 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                     for (let x = 0; x < W; x++) colCount[x] += dark[off + x];
                 }
                 const colThresh = bandH * 0.15;
+                // Tolerate small horizontal gaps so hyphens / digit spacing
+                // don't fragment a phone number into many small runs.
+                const gapTol = Math.max(2, Math.floor(bandH * 1.5));
+                // Collect all gap-tolerant runs in this band; pick the longest.
+                const runs: { x0: number; x1: number }[] = [];
                 let runStart = -1;
-                let bestRun: { x0: number; x1: number } | null = null;
+                let runLastInk = -1;
                 for (let x = 0; x < W; x++) {
                     const isInk = colCount[x] > colThresh;
-                    if (isInk && runStart < 0) runStart = x;
-                    else if (!isInk && runStart >= 0) {
-                        const len = x - runStart;
-                        if (!bestRun || len > bestRun.x1 - bestRun.x0) bestRun = { x0: runStart, x1: x };
+                    if (isInk) {
+                        if (runStart < 0) runStart = x;
+                        runLastInk = x;
+                    } else if (runStart >= 0 && x - runLastInk > gapTol) {
+                        runs.push({ x0: runStart, x1: runLastInk + 1 });
                         runStart = -1;
+                        runLastInk = -1;
                     }
+                }
+                if (runStart >= 0) runs.push({ x0: runStart, x1: runLastInk + 1 });
+                let bestRun = null as null | { x0: number; x1: number };
+                for (const r of runs) {
+                    if (!bestRun || r.x1 - r.x0 > bestRun.x1 - bestRun.x0) bestRun = r;
                 }
                 if (!bestRun) continue;
                 const w = bestRun.x1 - bestRun.x0;
@@ -1341,9 +1363,10 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                 }
             }
             if (bestPhone) {
-                // Add a small horizontal margin so the box covers the entire glyph
-                const padX = Math.round(bestPhone.h * 0.3);
-                const padY = Math.round(bestPhone.h * 0.15);
+                // Generous padding so the box reliably covers the entire glyph,
+                // descenders, and a sliver of the icon usually preceding it.
+                const padX = Math.round(bestPhone.h * 0.6);
+                const padY = Math.round(bestPhone.h * 0.3);
                 const x = Math.max(0, bestPhone.x - padX);
                 const y = Math.max(0, bestPhone.y - padY);
                 const w = Math.min(W - x, bestPhone.w + padX * 2);
@@ -1351,8 +1374,8 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                 setPhoneEnabled(true);
                 setPhoneBox({ x: x / W, y: y / H, w: w / W, h: h / H });
                 messages.push('已对齐电话号码');
-            } else if (phoneEnabled) {
-                messages.push('未检测到电话号码');
+            } else {
+                messages.push('未检测到电话号码（可手动拖动调整）');
             }
             // Surface as a non-blocking info message (uses error slot for now)
             if (messages.length) setError(messages.join('；'));
