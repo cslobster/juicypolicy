@@ -1208,7 +1208,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                         className="aspect-[3/4] rounded-md overflow-hidden bg-slate-100 hover:ring-2 hover:ring-orange-400"
                                         title={u.filename}
                                     >
-                                        <img src={u.public_url} alt={u.filename} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                        <img src={u.public_url} alt={u.filename} className="w-full h-full object-cover" />
                                     </button>
                                 ))}
                             </div>
