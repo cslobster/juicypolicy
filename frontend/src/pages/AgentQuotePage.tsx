@@ -47,9 +47,9 @@ const AgentQuotePage = () => {
 };
 
 const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boolean }) => {
-    const fallbackUrl = agent ? `${window.location.origin}/agent/${agent.username}` : '';
-    const fallbackQr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=2&data=${encodeURIComponent(fallbackUrl)}`;
-    const qrSrc = agent ? (agent.wechat_qr || fallbackQr) : null;
+    // Only show the WeChat QR if the agent has actually uploaded one — no
+    // fallback to a quote-link QR.
+    const qrSrc = agent?.wechat_qr || null;
 
     return (
         <header className="sticky top-0 z-30 bg-[#103b35] text-white shadow-sm">
