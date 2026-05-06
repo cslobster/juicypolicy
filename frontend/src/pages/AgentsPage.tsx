@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -904,7 +904,15 @@ const CopyAssetsView = ({ token }: { token: string }) => {
     const [error, setError] = useState('');
     const [progress, setProgress] = useState<Record<string, number>>({});
     const [dragOver, setDragOver] = useState(false);
+    const [previewing, setPreviewing] = useState<AgentUpload | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!previewing) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPreviewing(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [previewing]);
 
     const refresh = async () => {
         setError('');
@@ -1082,11 +1090,16 @@ const CopyAssetsView = ({ token }: { token: string }) => {
                         {uploads.map(u => {
                             const Icon = iconForMime(u.mime_type);
                             const isImage = u.mime_type?.startsWith('image/');
+                            const canPreview = isImage || u.mime_type?.startsWith('video/') || u.mime_type?.startsWith('audio/') || u.mime_type === 'application/pdf';
                             return (
                                 <div key={u.id} className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-                                    <div className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden">
+                                    <div
+                                        className={`aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden ${canPreview ? 'cursor-zoom-in select-none' : ''}`}
+                                        onDoubleClick={() => canPreview && setPreviewing(u)}
+                                        title={canPreview ? '双击预览' : undefined}
+                                    >
                                         {isImage ? (
-                                            <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" />
+                                            <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" draggable={false} />
                                         ) : (
                                             <Icon size={36} className="text-slate-400" />
                                         )}
@@ -1105,6 +1118,67 @@ const CopyAssetsView = ({ token }: { token: string }) => {
                         })}
                     </div>
                 )}
+            </div>
+
+            {previewing && (
+                <PreviewModal upload={previewing} onClose={() => setPreviewing(null)} />
+            )}
+        </div>
+    );
+};
+
+const PreviewModal = ({ upload, onClose }: { upload: AgentUpload; onClose: () => void }) => {
+    const mime = upload.mime_type || '';
+    const isImage = mime.startsWith('image/');
+    const isVideo = mime.startsWith('video/');
+    const isAudio = mime.startsWith('audio/');
+    const isPdf = mime === 'application/pdf';
+
+    return (
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-8"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+        >
+            <button
+                onClick={onClose}
+                aria-label="关闭"
+                className="absolute top-4 right-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            >
+                <X size={20} />
+            </button>
+
+            <div
+                className="relative max-h-full max-w-full"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {isImage && (
+                    <img src={upload.public_url} alt={upload.filename} className="max-h-[88vh] max-w-[92vw] rounded-lg object-contain shadow-2xl" />
+                )}
+                {isVideo && (
+                    <video src={upload.public_url} controls autoPlay className="max-h-[88vh] max-w-[92vw] rounded-lg shadow-2xl" />
+                )}
+                {isAudio && (
+                    <div className="rounded-2xl bg-slate-900 px-8 py-10 shadow-2xl text-center min-w-[360px]">
+                        <Music size={48} className="mx-auto mb-4 text-slate-300" />
+                        <p className="text-white font-medium mb-4 break-all">{upload.filename}</p>
+                        <audio src={upload.public_url} controls autoPlay className="w-full" />
+                    </div>
+                )}
+                {isPdf && (
+                    <iframe
+                        src={upload.public_url}
+                        title={upload.filename}
+                        className="h-[88vh] w-[90vw] max-w-[1200px] rounded-lg bg-white shadow-2xl"
+                    />
+                )}
+            </div>
+
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 text-sm text-white/80">
+                <span className="truncate max-w-[60vw]">{upload.filename}</span>
+                <span className="text-white/50">·</span>
+                <span>{fmtSize(upload.size_bytes)}</span>
             </div>
         </div>
     );
