@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X, Share2, LayoutGrid, List } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X, Share2, LayoutGrid, List, Download, Wand2 } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -844,9 +844,11 @@ const Field = ({ label, value, className = '' }: { label: string; value: string 
 const MarketingView = ({ agent, token }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`;
+    const qrUrlHiRes = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=8&data=${encodeURIComponent(url)}`;
     const [shared, setShared] = useState<AgentUpload[]>([]);
     const [sharedLoading, setSharedLoading] = useState(true);
     const [previewing, setPreviewing] = useState<AgentUpload | null>(null);
+    const [posterEditorOpen, setPosterEditorOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -901,14 +903,21 @@ const MarketingView = ({ agent, token }: any) => {
                             <div className="flex-1 space-y-2 text-sm">
                                 <p className="text-slate-700">扫描二维码可直接打开您的报价页面。</p>
                                 <p className="text-xs text-slate-500 break-all">{url}</p>
-                                <div className="flex gap-2 pt-2">
+                                <div className="flex flex-wrap gap-2 pt-2">
                                     <a
                                         href={qrUrl}
                                         download={`juicypolicy-${agent.username}-qr.png`}
                                         className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
                                     >
-                                        下载二维码
+                                        <Download size={14} /> 下载二维码
                                     </a>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPosterEditorOpen(true)}
+                                        className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700"
+                                    >
+                                        <Wand2 size={14} /> 制作海报
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -968,6 +977,339 @@ const MarketingView = ({ agent, token }: any) => {
             {previewing && (
                 <PreviewModal upload={previewing} onClose={() => setPreviewing(null)} />
             )}
+
+            {posterEditorOpen && (
+                <PosterEditor
+                    agent={agent}
+                    marketingQrUrl={qrUrlHiRes}
+                    sharedAssets={shared.filter(u => u.mime_type?.startsWith('image/'))}
+                    onClose={() => setPosterEditorOpen(false)}
+                />
+            )}
+        </div>
+    );
+};
+
+// ---------- Poster editor: pick a poster, drop the agent's QR onto it, download ----------
+
+interface PosterEditorProps {
+    agent: any;
+    marketingQrUrl: string;
+    sharedAssets: AgentUpload[];
+    onClose: () => void;
+}
+
+const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, sharedAssets, onClose }) => {
+    const [posterSrc, setPosterSrc] = useState<string | null>(null);
+    const [posterDims, setPosterDims] = useState<{ w: number; h: number } | null>(null);
+    const [qrSource, setQrSource] = useState<'marketing' | 'wechat'>('marketing');
+    const [qrBox, setQrBox] = useState({ x: 0.4, y: 0.6, size: 0.2 });
+    const [error, setError] = useState('');
+    const [downloading, setDownloading] = useState(false);
+    const [showLibrary, setShowLibrary] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const wechatQrAvailable = !!agent.wechat_qr;
+    const qrSrc = qrSource === 'marketing' ? marketingQrUrl : agent.wechat_qr;
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    const onPosterFile = (file: File) => {
+        if (!file.type.startsWith('image/')) { setError('请选择图片文件'); return; }
+        if (file.size > 10 * 1024 * 1024) { setError('图片不能超过 10 MB'); return; }
+        setError('');
+        const reader = new FileReader();
+        reader.onload = () => loadPoster(reader.result as string);
+        reader.onerror = () => setError('读取图片失败');
+        reader.readAsDataURL(file);
+    };
+
+    const loadPoster = (src: string) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            setPosterSrc(src);
+            setPosterDims({ w: img.naturalWidth, h: img.naturalHeight });
+            const size = 0.22;
+            const aspectWoverH = img.naturalWidth / img.naturalHeight;
+            const sizeYFrac = size * aspectWoverH;
+            setQrBox({ x: (1 - size) / 2, y: Math.min(0.95 - sizeYFrac, 0.7), size });
+        };
+        img.onerror = () => setError('无法加载该图片，可能是跨域限制');
+        img.src = src;
+    };
+
+    const startMove = (e: React.PointerEvent) => {
+        if (!containerRef.current || !posterDims) return;
+        e.preventDefault();
+        e.stopPropagation();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        const rect = containerRef.current.getBoundingClientRect();
+        const startBox = { ...qrBox };
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const aspectWoverH = posterDims.w / posterDims.h;
+        const sizeYFrac = startBox.size * aspectWoverH;
+
+        const onMove = (ev: PointerEvent) => {
+            const dx = (ev.clientX - startX) / rect.width;
+            const dy = (ev.clientY - startY) / rect.height;
+            setQrBox(prev => ({
+                ...prev,
+                x: Math.max(0, Math.min(1 - prev.size, startBox.x + dx)),
+                y: Math.max(0, Math.min(1 - sizeYFrac, startBox.y + dy)),
+            }));
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
+
+    const startResize = (e: React.PointerEvent) => {
+        if (!containerRef.current || !posterDims) return;
+        e.preventDefault();
+        e.stopPropagation();
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+        const rect = containerRef.current.getBoundingClientRect();
+        const startBox = { ...qrBox };
+        const startX = e.clientX;
+        const aspectWoverH = posterDims.w / posterDims.h;
+
+        const onMove = (ev: PointerEvent) => {
+            const dx = (ev.clientX - startX) / rect.width;
+            const newSize = Math.max(0.05, Math.min(1 - startBox.x, startBox.size + dx));
+            const sizeYFrac = newSize * aspectWoverH;
+            setQrBox({
+                x: startBox.x,
+                y: Math.min(startBox.y, Math.max(0, 1 - sizeYFrac)),
+                size: newSize,
+            });
+        };
+        const onUp = () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+    };
+
+    const loadImg = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error('图片加载失败（可能是跨域）'));
+            img.src = src;
+        });
+
+    const handleDownload = async () => {
+        if (!posterSrc || !posterDims) return;
+        setError('');
+        setDownloading(true);
+        try {
+            const [posterImg, qrImg] = await Promise.all([loadImg(posterSrc), loadImg(qrSrc)]);
+            const canvas = document.createElement('canvas');
+            canvas.width = posterImg.naturalWidth;
+            canvas.height = posterImg.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas 不可用');
+            ctx.drawImage(posterImg, 0, 0);
+
+            const px = qrBox.x * canvas.width;
+            const py = qrBox.y * canvas.height;
+            const ps = qrBox.size * canvas.width;
+            const pad = Math.round(ps * 0.04);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(px - pad, py - pad, ps + pad * 2, ps + pad * 2);
+            ctx.drawImage(qrImg, px, py, ps, ps);
+
+            const blob: Blob | null = await new Promise(res => canvas.toBlob(b => res(b), 'image/png'));
+            if (!blob) throw new Error('生成图片失败');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `poster-${agent.username}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        } catch (err: any) {
+            setError(err.message || '下载失败');
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                    <div>
+                        <h3 className="text-base font-semibold text-slate-900">制作海报</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">选择海报底图，拖动方框定位二维码位置，点击下载即可保存。</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        aria-label="关闭"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
+                    <div>
+                        <p className="text-xs font-medium text-slate-700 mb-2">1. 选择海报底图</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800 cursor-pointer">
+                                <Upload size={14} /> 上传图片
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => e.target.files?.[0] && onPosterFile(e.target.files[0])}
+                                />
+                            </label>
+                            {sharedAssets.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLibrary(s => !s)}
+                                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50"
+                                >
+                                    <ImageIcon size={14} /> {showLibrary ? '收起共享素材' : '从共享素材选择'}
+                                </button>
+                            )}
+                            {posterSrc && (
+                                <button
+                                    type="button"
+                                    onClick={() => { setPosterSrc(null); setPosterDims(null); }}
+                                    className="text-xs text-slate-500 hover:text-slate-700"
+                                >
+                                    重新选择
+                                </button>
+                            )}
+                        </div>
+                        {showLibrary && sharedAssets.length > 0 && (
+                            <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
+                                {sharedAssets.map(u => (
+                                    <button
+                                        key={u.id}
+                                        type="button"
+                                        onClick={() => { loadPoster(u.public_url); setShowLibrary(false); }}
+                                        className="aspect-[3/4] rounded-md overflow-hidden bg-slate-100 hover:ring-2 hover:ring-orange-400"
+                                        title={u.filename}
+                                    >
+                                        <img src={u.public_url} alt={u.filename} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {posterSrc && posterDims && (
+                        <>
+                            <div>
+                                <p className="text-xs font-medium text-slate-700 mb-2">2. 选择要嵌入的二维码</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setQrSource('marketing')}
+                                        className={`text-sm px-3 py-1.5 rounded-md border ${qrSource === 'marketing' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-300 hover:bg-slate-50'}`}
+                                    >
+                                        营销链接二维码
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => wechatQrAvailable && setQrSource('wechat')}
+                                        disabled={!wechatQrAvailable}
+                                        className={`text-sm px-3 py-1.5 rounded-md border ${qrSource === 'wechat' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-300 hover:bg-slate-50'} ${!wechatQrAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                        title={wechatQrAvailable ? '' : '请先在「资料设置」上传微信二维码'}
+                                    >
+                                        微信二维码
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs font-medium text-slate-700 mb-2">3. 拖动方框定位（右下角小方块可调整大小）</p>
+                                <div
+                                    ref={containerRef}
+                                    className="relative w-full mx-auto bg-slate-100 rounded-lg overflow-hidden select-none touch-none"
+                                    style={{ aspectRatio: `${posterDims.w} / ${posterDims.h}`, maxHeight: '60vh' }}
+                                >
+                                    <img
+                                        src={posterSrc}
+                                        alt="poster"
+                                        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                                        draggable={false}
+                                    />
+                                    <div
+                                        className="absolute border-2 border-orange-500 shadow-[0_0_0_2px_rgba(255,255,255,0.6)] cursor-move bg-white/30"
+                                        style={{
+                                            left: `${qrBox.x * 100}%`,
+                                            top: `${qrBox.y * 100}%`,
+                                            width: `${qrBox.size * 100}%`,
+                                            aspectRatio: '1 / 1',
+                                            touchAction: 'none',
+                                        }}
+                                        onPointerDown={startMove}
+                                    >
+                                        {qrSrc && (
+                                            <img
+                                                src={qrSrc}
+                                                alt="QR preview"
+                                                className="w-full h-full object-contain p-1 pointer-events-none"
+                                                crossOrigin="anonymous"
+                                                draggable={false}
+                                            />
+                                        )}
+                                        <div
+                                            onPointerDown={startResize}
+                                            className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-sm bg-orange-500 border-2 border-white cursor-se-resize"
+                                            style={{ touchAction: 'none' }}
+                                            title="调整大小"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-2">
+                                    海报原始尺寸 {posterDims.w} × {posterDims.h}px。下载图片为同尺寸 PNG。
+                                </p>
+                            </div>
+                        </>
+                    )}
+
+                    {error && (
+                        <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{error}</div>
+                    )}
+                </div>
+
+                <div className="px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50"
+                    >
+                        取消
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleDownload}
+                        disabled={!posterSrc || downloading}
+                        className="inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Download size={14} /> {downloading ? '生成中…' : '下载海报'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
