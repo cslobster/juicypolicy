@@ -872,21 +872,27 @@ const MarketingView = ({ agent, token }: any) => {
     return (
         <div className="px-6 py-8 lg:px-10">
             <div className="max-w-3xl">
-                <h1 className="text-2xl font-bold text-slate-900">推广</h1>
-                <p className="text-sm text-slate-500 mt-2">分享素材帮助您将专属链接推广给潜在客户。</p>
+                <h1 className="text-2xl font-bold text-slate-900">市场推广</h1>
 
                 <Card className="mt-6">
                     <CardContent className="pt-6">
-                        <h3 className="font-semibold mb-3">分享文案</h3>
-                        <div className="space-y-3 text-sm">
-                            <div>
-                                <p className="text-xs text-slate-500 mb-1">推荐文案（中文）</p>
-                                <textarea
-                                    readOnly
-                                    rows={3}
-                                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-mono"
-                                    value={`您好，我是您的保险顾问 ${agent.full_name}。点击此链接获取免费的健康保险报价：${url}`}
-                                />
+                        <h3 className="font-semibold mb-3">专属链接二维码</h3>
+                        <p className="text-xs text-slate-500 mb-4">扫描二维码可直接打开您的报价页面。</p>
+                        <div className="flex items-start gap-4">
+                            <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
+                                <img src={qrUrl} alt="专属链接二维码" className="w-32 h-32" />
+                            </div>
+                            <div className="flex-1 space-y-2 text-sm">
+                                <p className="text-xs text-slate-500 break-all">{url}</p>
+                                <div className="pt-2">
+                                    <a
+                                        href={qrUrl}
+                                        download={`juicypolicy-${agent.username}-qr.png`}
+                                        className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
+                                    >
+                                        <Download size={14} /> 下载二维码
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -896,31 +902,13 @@ const MarketingView = ({ agent, token }: any) => {
                     <CardContent className="pt-6">
                         <h3 className="font-semibold mb-3">制作海报</h3>
                         <p className="text-xs text-slate-500 mb-4">选择海报底图，将自己的二维码放上去并下载，方便在朋友圈、社交媒体或线下宣传。</p>
-                        <div className="flex items-start gap-4">
-                            <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
-                                <img src={qrUrl} alt="专属链接二维码" className="w-32 h-32" />
-                            </div>
-                            <div className="flex-1 space-y-2 text-sm">
-                                <p className="text-slate-700">扫描二维码可直接打开您的报价页面。</p>
-                                <p className="text-xs text-slate-500 break-all">{url}</p>
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    <a
-                                        href={qrUrl}
-                                        download={`juicypolicy-${agent.username}-qr.png`}
-                                        className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-slate-900 text-white hover:bg-slate-800"
-                                    >
-                                        <Download size={14} /> 下载二维码
-                                    </a>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPosterEditorOpen(true)}
-                                        className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700"
-                                    >
-                                        <Wand2 size={14} /> 制作海报
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setPosterEditorOpen(true)}
+                            className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700"
+                        >
+                            <Wand2 size={14} /> 制作海报
+                        </button>
                     </CardContent>
                 </Card>
 
