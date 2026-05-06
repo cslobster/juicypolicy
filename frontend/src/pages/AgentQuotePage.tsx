@@ -100,14 +100,15 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                         />
                     )}
                 </div>
-                {/* Mobile: phone + larger QR (scannable) */}
+                {/* Mobile: tappable phone + scannable QR */}
                 <div className="md:hidden flex items-center gap-2.5">
                     {agent?.telephone && (
                         <a
                             href={`tel:${agent.telephone}`}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-white/90 hover:text-white"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/25 ring-1 ring-white/20 text-white text-sm font-semibold tracking-wide"
                         >
-                            <Phone size={12} className="text-orange-300" /> {agent.telephone}
+                            <Phone size={15} className="text-orange-300" />
+                            {agent.telephone}
                         </a>
                     )}
                     {qrSrc && (

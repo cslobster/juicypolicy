@@ -1288,11 +1288,21 @@ def agent_public_profile(username: str, db: Session = Depends(get_db)):
     )
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Resolve QR: prefer the R2-stored object (signed URL, 6-day TTL); fall back
+    # to the legacy data-URL column for any unmigrated rows.
+    qr = agent.wechat_qr
+    if agent.wechat_qr_key:
+        try:
+            qr = r2_service.presign_get(agent.wechat_qr_key, expires_seconds=60 * 60 * 24 * 6)
+        except Exception:
+            pass
+
     return {
         "username": agent.username,
         "full_name": agent.full_name,
         "email": agent.email,
         "wechat_id": agent.wechat_id,
         "telephone": agent.telephone,
-        "wechat_qr": agent.wechat_qr,
+        "wechat_qr": qr,
     }
