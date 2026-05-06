@@ -995,6 +995,8 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
     const [error, setError] = useState('');
     const [downloading, setDownloading] = useState(false);
     const [showLibrary, setShowLibrary] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // For canvas reads, route R2-hosted images through the FastAPI proxy so the
@@ -1114,42 +1116,81 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             img.src = src;
         });
 
+    const renderComposite = async (): Promise<Blob> => {
+        if (!posterSrc || !posterDims) throw new Error('请先选择海报');
+        const [posterImg, qrImg] = await Promise.all([loadImg(posterSrc), loadImg(qrSrc)]);
+        const canvas = document.createElement('canvas');
+        canvas.width = posterImg.naturalWidth;
+        canvas.height = posterImg.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas 不可用');
+        ctx.drawImage(posterImg, 0, 0);
+
+        const px = qrBox.x * canvas.width;
+        const py = qrBox.y * canvas.height;
+        const ps = qrBox.size * canvas.width;
+        const pad = Math.round(ps * 0.04);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(px - pad, py - pad, ps + pad * 2, ps + pad * 2);
+        ctx.drawImage(qrImg, px, py, ps, ps);
+
+        const blob: Blob | null = await new Promise(res => canvas.toBlob(b => res(b), 'image/png'));
+        if (!blob) throw new Error('生成图片失败');
+        return blob;
+    };
+
+    const handlePreview = async () => {
+        if (!posterSrc || !posterDims) return;
+        setError('');
+        setPreviewLoading(true);
+        try {
+            const blob = await renderComposite();
+            // Replace any prior preview blob so we don't leak object URLs
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(URL.createObjectURL(blob));
+        } catch (err: any) {
+            setError(err.message || '预览失败');
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
     const handleDownload = async () => {
         if (!posterSrc || !posterDims) return;
         setError('');
         setDownloading(true);
         try {
-            const [posterImg, qrImg] = await Promise.all([loadImg(posterSrc), loadImg(qrSrc)]);
-            const canvas = document.createElement('canvas');
-            canvas.width = posterImg.naturalWidth;
-            canvas.height = posterImg.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Canvas 不可用');
-            ctx.drawImage(posterImg, 0, 0);
-
-            const px = qrBox.x * canvas.width;
-            const py = qrBox.y * canvas.height;
-            const ps = qrBox.size * canvas.width;
-            const pad = Math.round(ps * 0.04);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(px - pad, py - pad, ps + pad * 2, ps + pad * 2);
-            ctx.drawImage(qrImg, px, py, ps, ps);
-
-            const blob: Blob | null = await new Promise(res => canvas.toBlob(b => res(b), 'image/png'));
-            if (!blob) throw new Error('生成图片失败');
+            // If we already rendered a preview, reuse it; else render fresh.
+            const downloadUrl = previewUrl || URL.createObjectURL(await renderComposite());
             const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
+            a.href = downloadUrl;
             a.download = `poster-${agent.username}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
+            // Only revoke URLs we just created here — keep previewUrl alive.
+            if (downloadUrl !== previewUrl) URL.revokeObjectURL(downloadUrl);
         } catch (err: any) {
             setError(err.message || '下载失败');
         } finally {
             setDownloading(false);
         }
     };
+
+    const closePreview = () => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+    };
+
+    // Re-render if any input changes — invalidate the cached preview so the
+    // user is forced to click 预览 again before downloading.
+    useEffect(() => {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [posterSrc, qrSource, qrBox.x, qrBox.y, qrBox.size]);
 
     return (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
@@ -1307,6 +1348,14 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                     </button>
                     <button
                         type="button"
+                        onClick={handlePreview}
+                        disabled={!posterSrc || previewLoading}
+                        className="inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {previewLoading ? '生成中…' : '预览'}
+                    </button>
+                    <button
+                        type="button"
                         onClick={handleDownload}
                         disabled={!posterSrc || downloading}
                         className="inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1315,6 +1364,54 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                     </button>
                 </div>
             </div>
+
+            {/* Composite preview overlay — shown above the editor modal */}
+            {previewUrl && (
+                <div
+                    className="fixed inset-0 z-[60] bg-black/85 flex flex-col items-center justify-center p-4"
+                    onClick={closePreview}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between shrink-0">
+                            <h3 className="text-base font-semibold text-slate-900">海报预览</h3>
+                            <button
+                                onClick={closePreview}
+                                className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="关闭"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto bg-slate-100 p-4 flex items-center justify-center">
+                            <img
+                                src={previewUrl}
+                                alt="poster preview"
+                                className="max-w-full max-h-[75vh] object-contain rounded-md shadow-md bg-white"
+                            />
+                        </div>
+                        <div className="px-5 py-3 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={closePreview}
+                                className="text-sm px-3 py-1.5 rounded-md border border-slate-300 hover:bg-slate-50"
+                            >
+                                返回编辑
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDownload}
+                                disabled={downloading}
+                                className="inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-md bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50"
+                            >
+                                <Download size={14} /> {downloading ? '保存中…' : '下载海报'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
