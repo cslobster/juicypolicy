@@ -86,37 +86,46 @@ const Header = () => {
                 {/* Right side */}
                 <div className="flex items-center gap-3">
                     {agent ? (
-                        <div className="relative" ref={profileRef}>
-                            <button
-                                onClick={() => setProfileOpen(v => !v)}
-                                aria-label={`已登录：${agent.full_name}`}
-                                className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors"
+                        <>
+                            <Link
+                                to="/login"
+                                className="hidden sm:inline-flex items-center gap-1.5 rounded-md bg-orange-500 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-orange-600 transition-colors"
                             >
-                                {initials(agent.full_name)}
-                            </button>
-                            {profileOpen && (
-                                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 py-2">
-                                    <div className="px-4 py-2 border-b border-slate-100">
-                                        <p className="text-sm font-semibold text-slate-900 truncate">{agent.full_name}</p>
-                                        <p className="text-xs text-slate-500 truncate">@{agent.username}</p>
+                                <LayoutDashboard className="h-4 w-4" />
+                                代理后台
+                            </Link>
+                            <div className="relative" ref={profileRef}>
+                                <button
+                                    onClick={() => setProfileOpen(v => !v)}
+                                    aria-label={`已登录：${agent.full_name}`}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors sm:bg-white sm:text-orange-600 sm:ring-1 sm:ring-orange-200 sm:hover:bg-orange-50"
+                                >
+                                    {initials(agent.full_name)}
+                                </button>
+                                {profileOpen && (
+                                    <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-slate-200 py-2">
+                                        <div className="px-4 py-2 border-b border-slate-100">
+                                            <p className="text-sm font-semibold text-slate-900 truncate">{agent.full_name}</p>
+                                            <p className="text-xs text-slate-500 truncate">@{agent.username}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => { setProfileOpen(false); navigate('/login'); }}
+                                            className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors sm:hidden"
+                                        >
+                                            <LayoutDashboard className="h-4 w-4" />
+                                            代理后台
+                                        </button>
+                                        <button
+                                            onClick={() => { logout(); setProfileOpen(false); navigate('/'); }}
+                                            className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <LogOut className="h-4 w-4" />
+                                            退出登录
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => { setProfileOpen(false); navigate('/login'); }}
-                                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                                    >
-                                        <LayoutDashboard className="h-4 w-4" />
-                                        代理后台
-                                    </button>
-                                    <button
-                                        onClick={() => { logout(); setProfileOpen(false); navigate('/'); }}
-                                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                                    >
-                                        <LogOut className="h-4 w-4" />
-                                        退出登录
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        </>
                     ) : (
                         <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                             代理登陆
@@ -151,19 +160,29 @@ const Header = () => {
                         })}
                     </div>
                     {agent ? (
-                        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 px-3">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-xs font-semibold text-white">
-                                    {initials(agent.full_name)}
-                                </div>
-                                <span className="text-sm text-slate-700 truncate">{agent.full_name}</span>
-                            </div>
-                            <button
-                                onClick={() => { logout(); navigate('/'); setMobileOpen(false); }}
-                                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 px-3">
+                            <Link
+                                to="/login"
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center gap-2 rounded-md bg-orange-500 px-3 py-2 text-sm font-medium text-white"
                             >
-                                退出
-                            </button>
+                                <LayoutDashboard className="h-4 w-4" />
+                                代理后台
+                            </Link>
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500 text-xs font-semibold text-white">
+                                        {initials(agent.full_name)}
+                                    </div>
+                                    <span className="text-sm text-slate-700 truncate">{agent.full_name}</span>
+                                </div>
+                                <button
+                                    onClick={() => { logout(); navigate('/'); setMobileOpen(false); }}
+                                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                                >
+                                    退出
+                                </button>
+                            </div>
                         </div>
                     ) : (
                         <div className="mt-3 pt-3 border-t border-slate-100 px-3">
