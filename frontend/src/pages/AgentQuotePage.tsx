@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Phone, Mail, Citrus } from 'lucide-react';
+import { Phone, Citrus } from 'lucide-react';
 import QuotePage from './QuotePage';
 import ChatInterface from '../components/ChatInterface';
 
@@ -79,21 +79,13 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                 </div>
                 <div className="hidden md:flex items-center gap-4">
                     <div className="flex flex-col items-end gap-0.5 text-[11px] text-white/85 leading-tight">
-                        <div className="flex items-center gap-3">
-                            {agent?.telephone && (
-                                <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
-                                    <Phone size={12} className="text-orange-300" /> {agent.telephone}
-                                </a>
-                            )}
-                            {agent?.email && (
-                                <a href={`mailto:${agent.email}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
-                                    <Mail size={12} className="text-orange-300" /> {agent.email}
-                                </a>
-                            )}
-                            {!loaded && (
-                                <span className="block h-3 w-40 rounded bg-white/10 animate-pulse" />
-                            )}
-                        </div>
+                        {agent?.telephone ? (
+                            <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1.5 hover:text-white transition-colors">
+                                <Phone size={12} className="text-orange-300" /> {agent.telephone}
+                            </a>
+                        ) : !loaded ? (
+                            <span className="block h-3 w-32 rounded bg-white/10 animate-pulse" />
+                        ) : null}
                         <p className="text-[10px] text-white/55 max-w-[28rem] text-right">
                             150 N Santa Anita Ave. Arcadia, CA 91006 / 7700 Irvine Center Dr. Irvine, CA 92618
                         </p>
@@ -108,18 +100,11 @@ const AgentHeader = ({ agent, loaded }: { agent: AgentPublic | null; loaded: boo
                     )}
                 </div>
             </div>
-            {(agent?.telephone || agent?.email) && (
+            {agent?.telephone && (
                 <div className="md:hidden border-t border-white/10 px-4 pb-2 pt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/85">
-                    {agent.telephone && (
-                        <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1">
-                            <Phone size={11} className="text-orange-300" /> {agent.telephone}
-                        </a>
-                    )}
-                    {agent.email && (
-                        <a href={`mailto:${agent.email}`} className="inline-flex items-center gap-1 truncate">
-                            <Mail size={11} className="text-orange-300" /> {agent.email}
-                        </a>
-                    )}
+                    <a href={`tel:${agent.telephone}`} className="inline-flex items-center gap-1">
+                        <Phone size={11} className="text-orange-300" /> {agent.telephone}
+                    </a>
                 </div>
             )}
         </header>
