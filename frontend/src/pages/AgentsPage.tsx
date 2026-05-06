@@ -248,24 +248,21 @@ const HomeView = ({ agent, token, onUpdate }: any) => {
                 <h1 className="text-2xl font-bold text-slate-900">欢迎使用鲜橙保险，{agent.full_name}！</h1>
                 <p className="text-sm text-slate-500 mt-2">在这里管理您的专属报价站点、客户线索和推广素材。</p>
 
-                <h2 className="mt-8 text-base font-semibold text-slate-900">通知</h2>
-                <div className="mt-3 rounded-xl border-l-4 border-orange-500 bg-orange-50/60 px-4 py-3 flex items-start justify-between gap-4">
-                    <div className="flex gap-3 text-sm text-slate-700">
-                        <Globe size={18} className="text-orange-500 mt-0.5 shrink-0" />
-                        <span>分享您的专属链接给客户，他们可在线获取健康保险报价。</span>
-                    </div>
-                    <a href={`/agent/${agent.username}`} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm font-medium text-orange-600 hover:underline inline-flex items-center gap-1">
-                        预览站点 <ExternalLink size={12} />
-                    </a>
-                </div>
-
                 <h2 className="mt-8 text-base font-semibold text-slate-900">您的专属链接</h2>
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-3 py-2.5">
+                <div className="mt-3 flex items-center gap-3 rounded-lg bg-white border border-slate-200 px-3 py-2.5">
                     <Globe size={16} className="text-orange-500 shrink-0" />
                     <code className="flex-1 text-sm text-slate-900 break-all">{url}</code>
                     <button onClick={copy} className="shrink-0 inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900">
                         {copied ? <><CheckCircle2 size={14} className="text-emerald-600" /> 已复制</> : <><Copy size={14} /> 复制</>}
                     </button>
+                    <a
+                        href={`/agent/${agent.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-orange-600 hover:underline"
+                    >
+                        预览站点 <ExternalLink size={12} />
+                    </a>
                 </div>
 
                 <h2 className="mt-8 text-base font-semibold text-slate-900">您的联系信息</h2>
