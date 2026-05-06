@@ -374,10 +374,17 @@ const ContactInfoCard = ({ agent, token, onUpdate }: any) => {
 
     return (
         <Card>
-            <CardContent className="pt-6">
-                <div className="flex items-center justify-end mb-4">
-                    {!editing && <Button size="sm" variant="outline" onClick={() => setEditing(true)}>编辑</Button>}
-                </div>
+            <CardContent className="pt-6 relative">
+                {!editing && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditing(true)}
+                        className="absolute top-5 right-5"
+                    >
+                        编辑
+                    </Button>
+                )}
 
                 {editing ? (
                     <div className="space-y-3">
