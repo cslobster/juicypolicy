@@ -1434,34 +1434,87 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             }
             const bg = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(bl)})`;
 
-            // Sample the ORIGINAL text color from inside the box: pixels whose
-            // RGB distance from the surrounding bg is large (i.e. the dark
-            // glyph pixels of the existing phone number). Average those.
+            // Sample the ORIGINAL text color + glyph height + stroke thickness
+            // from inside the box. We classify pixels as "text" if their RGB
+            // distance from surrounding bg exceeds 60.
             let fg = '#1a1a1a';
+            // Default font characteristics (overridden if we can sample)
+            let weight = 700;
+            let glyphFracH = 0.72;
             try {
                 const inside = ctx.getImageData(bx, by, bw, bh).data;
+                const isText = new Uint8Array(bw * bh);
                 let tr = 0, tg = 0, tb = 0, tn = 0;
-                const threshold = 60; // RGB distance from bg to count as "text"
-                for (let i = 0; i < inside.length; i += 4) {
+                const threshold = 60;
+                for (let i = 0, p = 0; i < inside.length; i += 4, p++) {
                     const dr = inside[i] - r;
                     const dg = inside[i + 1] - g;
                     const db = inside[i + 2] - bl;
                     const dist = Math.sqrt(dr * dr + dg * dg + db * db);
                     if (dist > threshold) {
+                        isText[p] = 1;
                         tr += inside[i]; tg += inside[i + 1]; tb += inside[i + 2]; tn++;
                     }
                 }
-                // Require at least 0.5% of pixels to look like text — guards
-                // against an empty box producing garbage colors.
                 if (tn > inside.length / 4 * 0.005) {
                     fg = `rgb(${Math.round(tr / tn)}, ${Math.round(tg / tn)}, ${Math.round(tb / tn)})`;
+
+                    // Glyph-height: rows that contain any text pixel are
+                    // the actual height the original glyphs occupy. Useful
+                    // because the box may be padded vertically.
+                    let firstRow = -1, lastRow = -1;
+                    for (let yy = 0; yy < bh; yy++) {
+                        let any = 0;
+                        const off = yy * bw;
+                        for (let xx = 0; xx < bw; xx++) {
+                            if (isText[off + xx]) { any = 1; break; }
+                        }
+                        if (any) {
+                            if (firstRow < 0) firstRow = yy;
+                            lastRow = yy;
+                        }
+                    }
+                    if (firstRow >= 0 && lastRow > firstRow) {
+                        glyphFracH = Math.max(0.45, Math.min(0.95, (lastRow - firstRow + 1) / bh));
+                    }
+
+                    // Stroke thickness: median horizontal run-length of
+                    // ink pixels divided by glyph height.
+                    const runs: number[] = [];
+                    for (let yy = 0; yy < bh; yy++) {
+                        const off = yy * bw;
+                        let run = 0;
+                        for (let xx = 0; xx < bw; xx++) {
+                            if (isText[off + xx]) {
+                                run++;
+                            } else if (run > 0) {
+                                runs.push(run);
+                                run = 0;
+                            }
+                        }
+                        if (run > 0) runs.push(run);
+                    }
+                    if (runs.length > 8) {
+                        runs.sort((a, b) => a - b);
+                        const median = runs[Math.floor(runs.length / 2)];
+                        const glyphH = Math.max(1, lastRow - firstRow);
+                        const strokeRatio = median / glyphH;
+                        // Map stroke thickness to a CSS font-weight.
+                        if (strokeRatio < 0.06) weight = 300;
+                        else if (strokeRatio < 0.09) weight = 400;
+                        else if (strokeRatio < 0.13) weight = 500;
+                        else if (strokeRatio < 0.17) weight = 600;
+                        else if (strokeRatio < 0.22) weight = 700;
+                        else if (strokeRatio < 0.28) weight = 800;
+                        else weight = 900;
+                    }
                 } else {
                     // Fallback: YIQ-based auto-contrast.
                     const yiq = (r * 299 + g * 587 + bl * 114) / 1000;
                     fg = yiq >= 140 ? '#1a1a1a' : '#ffffff';
                 }
             } catch {
-                /* CORS / canvas-tainted — keep default fg */
+                /* CORS / canvas-tainted — keep default fg / weight */
             }
 
             // Erase + draw text
@@ -1471,12 +1524,13 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             ctx.fillStyle = fg;
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'center';
-            // Auto-fit font size to box dims
-            let fontPx = Math.floor(bh * 0.72);
-            const fontFamily = '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+            // Auto-fit font size: start from the measured glyph height; the
+            // detected weight tries to match the original phone's stroke.
+            let fontPx = Math.floor(bh * glyphFracH);
+            const fontFamily = '"SF Pro Display", -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", "Source Han Sans CN", sans-serif';
             const maxTextW = bw * 0.94;
             while (fontPx > 6) {
-                ctx.font = `bold ${fontPx}px ${fontFamily}`;
+                ctx.font = `${weight} ${fontPx}px ${fontFamily}`;
                 if (ctx.measureText(phoneText).width <= maxTextW) break;
                 fontPx -= 2;
             }
