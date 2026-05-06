@@ -49,6 +49,7 @@ class Upload(Base):
     r2_key = Column(String(512), nullable=False, unique=True)
     public_url = Column(String(1024), nullable=True)
     label = Column(String(120), nullable=True)
+    is_shared = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

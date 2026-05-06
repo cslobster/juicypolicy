@@ -842,8 +842,8 @@ def agent_confirm_upload(
     return _upload_to_dict(upload)
 
 
-def _upload_to_dict(u: models.Upload) -> dict:
-    return {
+def _upload_to_dict(u: models.Upload, include_agent: bool = False, db: Optional[Session] = None) -> dict:
+    out = {
         "id": u.id,
         "filename": u.filename,
         "mime_type": u.mime_type,
@@ -851,8 +851,18 @@ def _upload_to_dict(u: models.Upload) -> dict:
         "r2_key": u.r2_key,
         "public_url": u.public_url or r2_service.presign_get(u.r2_key),
         "label": u.label,
+        "is_shared": bool(u.is_shared),
         "created_at": u.created_at.isoformat() if u.created_at else None,
     }
+    if include_agent and db is not None and u.agent_id:
+        agent = db.query(models.Agent).filter(models.Agent.id == u.agent_id).first()
+        if agent:
+            out["agent"] = {
+                "id": agent.id,
+                "username": agent.username,
+                "full_name": agent.full_name,
+            }
+    return out
 
 
 @app.get("/api/agents/me/uploads")
@@ -906,9 +916,27 @@ def agent_update_upload(
         raise HTTPException(status_code=404, detail="文件未找到")
     if "label" in body:
         u.label = (body.get("label") or "").strip() or None
+    if "is_shared" in body:
+        u.is_shared = bool(body.get("is_shared"))
     db.commit()
     db.refresh(u)
     return _upload_to_dict(u)
+
+
+@app.get("/api/uploads/shared")
+def list_shared_uploads(
+    _agent_id: int = Depends(require_agent),
+    db: Session = Depends(get_db),
+):
+    """All uploads marked as shared by any agent (visible in 市场推广)."""
+    rows = (
+        db.query(models.Upload)
+        .filter(models.Upload.is_shared == True)  # noqa: E712
+        .order_by(models.Upload.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    return {"uploads": [_upload_to_dict(u, include_agent=True, db=db) for u in rows]}
 
 
 @app.post("/api/enrollments")

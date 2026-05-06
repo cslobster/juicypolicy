@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X } from 'lucide-react';
+import { Users, Globe, LogOut, Copy, CheckCircle2, Home, UserCircle, Megaphone, ExternalLink, PenLine, Settings, GraduationCap, FileText, ShieldCheck, KeyRound, Plus, Star, Upload, Trash2, Image as ImageIcon, Film, FileType, Music, X, Share2, LayoutGrid, List } from 'lucide-react';
 import QuotePage from './QuotePage';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -224,7 +224,7 @@ const AgentDashboard = ({ agent, token, onUpdate, onLogout }: any) => {
                 {view === 'home' && <HomeView agent={agent} token={token} onUpdate={onUpdate} />}
                 {view === 'quote' && <QuoteView agent={agent} />}
                 {view === 'clients' && <ClientsView token={token} />}
-                {view === 'marketing' && <MarketingView agent={agent} />}
+                {view === 'marketing' && <MarketingView agent={agent} token={token} />}
                 {view === 'copy' && <CopyAssetsView token={token} />}
                 {view === 'tools' && <ComingSoonView title="佣金管理" subtitle="跟踪每个客户的佣金、对账单和提现记录。" icon={Settings} />}
                 {view === 'training' && <ComingSoonView title="行业培训" subtitle="定期发布的产品介绍和销售培训课程。" icon={GraduationCap} />}
@@ -785,9 +785,32 @@ const Field = ({ label, value, className = '' }: { label: string; value: string 
     </div>
 );
 
-const MarketingView = ({ agent }: any) => {
+const MarketingView = ({ agent, token }: any) => {
     const url = `${window.location.origin}/agent/${agent.username}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(url)}`;
+    const [shared, setShared] = useState<AgentUpload[]>([]);
+    const [sharedLoading, setSharedLoading] = useState(true);
+    const [previewing, setPreviewing] = useState<AgentUpload | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        setSharedLoading(true);
+        fetch(`${API_BASE}/api/uploads/shared`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.ok ? r.json() : { uploads: [] })
+            .then(data => { if (!cancelled) { setShared(data.uploads || []); setSharedLoading(false); } })
+            .catch(() => { if (!cancelled) setSharedLoading(false); });
+        return () => { cancelled = true; };
+    }, [token]);
+
+    useEffect(() => {
+        if (!previewing) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPreviewing(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [previewing]);
+
+    const copyUrl = async (u: string) => { try { await navigator.clipboard.writeText(u); } catch { /* */ } };
+
     return (
         <div className="px-6 py-8 lg:px-10">
             <div className="max-w-3xl">
@@ -838,15 +861,57 @@ const MarketingView = ({ agent }: any) => {
 
                 <Card className="mt-4">
                     <CardContent className="pt-6">
-                        <h3 className="font-semibold mb-3">分享视频</h3>
-                        <p className="text-xs text-slate-500 mb-4">短视频素材，方便在抖音、视频号或微信群中推广。</p>
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center">
-                            <p className="text-sm text-slate-700 font-medium">视频素材即将上线</p>
-                            <p className="text-xs text-slate-500 mt-1.5">我们正在制作专业的健康保险介绍视频，敬请期待。</p>
-                        </div>
+                        <h3 className="font-semibold">共享素材库</h3>
+                        <p className="text-xs text-slate-500 mt-1 mb-4">所有代理共享的图片和视频素材，可点击预览或复制链接使用。</p>
+
+                        {sharedLoading ? (
+                            <div className="text-sm text-slate-500">加载中...</div>
+                        ) : shared.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-6 py-10 text-center">
+                                <Share2 size={26} className="mx-auto text-slate-300" />
+                                <p className="mt-2 text-sm text-slate-700 font-medium">暂无共享素材</p>
+                                <p className="mt-1 text-xs text-slate-500">在「文案制作」中点击素材的「共享」按钮即可发布到这里。</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                                {shared.map(u => {
+                                    const Icon = iconForMime(u.mime_type);
+                                    const isImage = u.mime_type?.startsWith('image/');
+                                    const canPreview = isImage || u.mime_type?.startsWith('video/') || u.mime_type?.startsWith('audio/') || u.mime_type === 'application/pdf';
+                                    return (
+                                        <div key={u.id} className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
+                                            <div
+                                                className={`aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden ${canPreview ? 'cursor-zoom-in select-none' : ''}`}
+                                                onClick={() => canPreview && setPreviewing(u)}
+                                            >
+                                                {isImage ? (
+                                                    <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" draggable={false} />
+                                                ) : (
+                                                    <Icon size={28} className="text-slate-400" />
+                                                )}
+                                            </div>
+                                            <div className="px-2.5 py-2">
+                                                <p className="text-xs font-medium text-slate-900 truncate" title={u.filename}>{u.filename}</p>
+                                                <p className="mt-0.5 text-[10px] text-slate-500 truncate">
+                                                    {u.agent ? `@${u.agent.username}` : ''}{u.agent && u.size_bytes != null ? ' · ' : ''}{fmtSize(u.size_bytes)}
+                                                </p>
+                                                <div className="mt-1.5 flex items-center gap-2 text-[11px]">
+                                                    <button onClick={() => copyUrl(u.public_url)} className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><Copy size={11} /> 复制</button>
+                                                    <a href={u.public_url} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ExternalLink size={11} /> 打开</a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
+
+            {previewing && (
+                <PreviewModal upload={previewing} onClose={() => setPreviewing(null)} />
+            )}
         </div>
     );
 };
@@ -870,7 +935,9 @@ interface AgentUpload {
     size_bytes: number | null;
     public_url: string;
     label: string | null;
+    is_shared: boolean;
     created_at: string | null;
+    agent?: { id: number; username: string; full_name: string };
 }
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'application/pdf', 'audio/'];
@@ -905,6 +972,7 @@ const CopyAssetsView = ({ token }: { token: string }) => {
     const [progress, setProgress] = useState<Record<string, number>>({});
     const [dragOver, setDragOver] = useState(false);
     const [previewing, setPreviewing] = useState<AgentUpload | null>(null);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -1021,8 +1089,18 @@ const CopyAssetsView = ({ token }: { token: string }) => {
         }
     };
 
-    const copyUrl = async (url: string) => {
-        try { await navigator.clipboard.writeText(url); } catch { /* */ }
+    const toggleShare = async (u: AgentUpload) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/agents/me/uploads/${u.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ is_shared: !u.is_shared }),
+            });
+            if (!res.ok) throw new Error(((await res.json()).detail) || '共享失败');
+            setUploads(prev => prev.map(x => x.id === u.id ? { ...x, is_shared: !x.is_shared } : x));
+        } catch (err: any) {
+            alert(err.message || '共享失败');
+        }
     };
 
     return (
@@ -1086,37 +1164,135 @@ const CopyAssetsView = ({ token }: { token: string }) => {
                 )}
 
                 {uploads.length > 0 && (
-                    <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                        {uploads.map(u => {
-                            const Icon = iconForMime(u.mime_type);
-                            const isImage = u.mime_type?.startsWith('image/');
-                            const canPreview = isImage || u.mime_type?.startsWith('video/') || u.mime_type?.startsWith('audio/') || u.mime_type === 'application/pdf';
-                            return (
-                                <div key={u.id} className="rounded-xl bg-white shadow-sm ring-1 ring-slate-200 overflow-hidden">
-                                    <div
-                                        className={`aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden ${canPreview ? 'cursor-zoom-in select-none' : ''}`}
-                                        onClick={() => canPreview && setPreviewing(u)}
-                                        title={canPreview ? '点击预览' : undefined}
-                                    >
-                                        {isImage ? (
-                                            <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" draggable={false} />
-                                        ) : (
-                                            <Icon size={36} className="text-slate-400" />
-                                        )}
-                                    </div>
-                                    <div className="px-3 py-2.5">
-                                        <p className="text-sm font-medium text-slate-900 truncate" title={u.filename}>{u.filename}</p>
-                                        <p className="mt-0.5 text-[11px] text-slate-500">{fmtSize(u.size_bytes)} · {fmtUploadDate(u.created_at)}</p>
-                                        <div className="mt-2 flex items-center gap-3 text-xs">
-                                            <button onClick={() => copyUrl(u.public_url)} className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><Copy size={12} /> 复制</button>
-                                            <a href={u.public_url} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ExternalLink size={12} /> 打开</a>
-                                            <button onClick={() => remove(u)} className="ml-auto text-red-600 hover:text-red-700 inline-flex items-center gap-1"><Trash2 size={12} /> 删除</button>
+                    <>
+                        <div className="mt-8 mb-3 flex items-center justify-between">
+                            <p className="text-sm text-slate-500">{uploads.length} 个素材</p>
+                            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                                    aria-label="网格视图"
+                                    title="网格视图"
+                                >
+                                    <LayoutGrid size={14} />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('list')}
+                                    className={`inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+                                    aria-label="列表视图"
+                                    title="列表视图"
+                                >
+                                    <List size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {viewMode === 'grid' ? (
+                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                                {uploads.map(u => {
+                                    const Icon = iconForMime(u.mime_type);
+                                    const isImage = u.mime_type?.startsWith('image/');
+                                    const canPreview = isImage || u.mime_type?.startsWith('video/') || u.mime_type?.startsWith('audio/') || u.mime_type === 'application/pdf';
+                                    return (
+                                        <div key={u.id} className={`rounded-xl bg-white shadow-sm ring-1 overflow-hidden ${u.is_shared ? 'ring-emerald-300' : 'ring-slate-200'}`}>
+                                            <div
+                                                className={`relative aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden ${canPreview ? 'cursor-zoom-in select-none' : ''}`}
+                                                onClick={() => canPreview && setPreviewing(u)}
+                                                title={canPreview ? '点击预览' : undefined}
+                                            >
+                                                {isImage ? (
+                                                    <img src={u.public_url} alt={u.filename} className="h-full w-full object-cover" draggable={false} />
+                                                ) : (
+                                                    <Icon size={36} className="text-slate-400" />
+                                                )}
+                                                {u.is_shared && (
+                                                    <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-emerald-600/95 text-white px-2 py-0.5 text-[11px] font-medium shadow-sm">
+                                                        <Share2 size={10} /> 已共享
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="px-3 py-2.5">
+                                                <p className="text-sm font-medium text-slate-900 truncate" title={u.filename}>{u.filename}</p>
+                                                <p className="mt-0.5 text-[11px] text-slate-500">{fmtSize(u.size_bytes)} · {fmtUploadDate(u.created_at)}</p>
+                                                <div className="mt-2 flex items-center gap-3 text-xs">
+                                                    <button
+                                                        onClick={() => toggleShare(u)}
+                                                        className={`inline-flex items-center gap-1 transition-colors ${u.is_shared ? 'text-emerald-600 hover:text-emerald-700 font-medium' : 'text-slate-600 hover:text-slate-900'}`}
+                                                    >
+                                                        <Share2 size={12} /> {u.is_shared ? '取消共享' : '共享'}
+                                                    </button>
+                                                    <a href={u.public_url} target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"><ExternalLink size={12} /> 打开</a>
+                                                    <button onClick={() => remove(u)} className="ml-auto text-red-600 hover:text-red-700 inline-flex items-center gap-1"><Trash2 size={12} /> 删除</button>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
+                                        <tr>
+                                            <th className="px-3 py-2.5 text-left font-medium w-10"></th>
+                                            <th className="px-3 py-2.5 text-left font-medium">文件名</th>
+                                            <th className="px-3 py-2.5 text-left font-medium hidden sm:table-cell">类型</th>
+                                            <th className="px-3 py-2.5 text-right font-medium hidden sm:table-cell">大小</th>
+                                            <th className="px-3 py-2.5 text-left font-medium hidden md:table-cell">日期</th>
+                                            <th className="px-3 py-2.5 text-right font-medium">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {uploads.map(u => {
+                                            const Icon = iconForMime(u.mime_type);
+                                            const isImage = u.mime_type?.startsWith('image/');
+                                            const canPreview = isImage || u.mime_type?.startsWith('video/') || u.mime_type?.startsWith('audio/') || u.mime_type === 'application/pdf';
+                                            return (
+                                                <tr key={u.id} className="hover:bg-slate-50/60">
+                                                    <td className="px-3 py-2">
+                                                        <div
+                                                            className={`flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 overflow-hidden ${canPreview ? 'cursor-zoom-in' : ''}`}
+                                                            onClick={() => canPreview && setPreviewing(u)}
+                                                            title={canPreview ? '点击预览' : undefined}
+                                                        >
+                                                            {isImage ? (
+                                                                <img src={u.public_url} alt="" className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <Icon size={18} className="text-slate-400" />
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-2 text-slate-900">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <span className="truncate" title={u.filename}>{u.filename}</span>
+                                                            {u.is_shared && (
+                                                                <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-medium">
+                                                                    <Share2 size={9} /> 已共享
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 py-2 text-slate-500 text-xs hidden sm:table-cell">{u.mime_type || '—'}</td>
+                                                    <td className="px-3 py-2 text-slate-700 text-right whitespace-nowrap hidden sm:table-cell">{fmtSize(u.size_bytes)}</td>
+                                                    <td className="px-3 py-2 text-slate-500 hidden md:table-cell">{fmtUploadDate(u.created_at)}</td>
+                                                    <td className="px-3 py-2 text-right whitespace-nowrap text-xs">
+                                                        <button
+                                                            onClick={() => toggleShare(u)}
+                                                            className={`inline-flex items-center gap-1 mr-3 transition-colors ${u.is_shared ? 'text-emerald-600 hover:text-emerald-700 font-medium' : 'text-slate-600 hover:text-slate-900'}`}
+                                                        >
+                                                            <Share2 size={12} /> {u.is_shared ? '取消共享' : '共享'}
+                                                        </button>
+                                                        <a href={u.public_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mr-3 text-slate-600 hover:text-slate-900"><ExternalLink size={12} /> 打开</a>
+                                                        <button onClick={() => remove(u)} className="inline-flex items-center gap-1 text-red-600 hover:text-red-700"><Trash2 size={12} /> 删除</button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
