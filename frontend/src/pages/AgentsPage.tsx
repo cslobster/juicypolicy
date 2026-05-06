@@ -1654,9 +1654,19 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                 </div>
                                 <p className="text-xs font-medium text-slate-700 mb-2">拖动方框定位二维码与电话号码（右下角小方块可调整大小）。点击「智能对齐」自动定位。</p>
                                 <div
+                                    className="w-full flex justify-center"
+                                >
+                                <div
                                     ref={containerRef}
-                                    className="relative w-full mx-auto bg-slate-100 rounded-lg overflow-hidden select-none touch-none"
-                                    style={{ aspectRatio: `${posterDims.w} / ${posterDims.h}`, maxHeight: '60vh' }}
+                                    className="relative bg-slate-100 rounded-lg overflow-hidden select-none touch-none"
+                                    style={{
+                                        aspectRatio: `${posterDims.w} / ${posterDims.h}`,
+                                        // Width fills the row but never exceeds the value that would
+                                        // make height larger than maxHeight — this keeps aspect intact
+                                        // so percentage-positioned overlays line up with the image.
+                                        width: `min(100%, calc(60vh * ${posterDims.w} / ${posterDims.h}))`,
+                                        maxHeight: '60vh',
+                                    }}
                                 >
                                     <img
                                         src={posterSrc}
@@ -1720,6 +1730,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                             title="调整大小"
                                         />
                                     </div>
+                                </div>
                                 </div>
                                 <p className="text-[11px] text-slate-500 mt-2">
                                     海报原始尺寸 {posterDims.w} × {posterDims.h}px。下载图片为同尺寸 PNG。{phoneEnabled ? ' 电话号码方框（蓝色虚线）会自动取周围颜色覆盖原号码。' : ''}
