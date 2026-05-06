@@ -894,8 +894,8 @@ const MarketingView = ({ agent, token }: any) => {
 
                 <Card className="mt-4">
                     <CardContent className="pt-6">
-                        <h3 className="font-semibold mb-3">分享海报</h3>
-                        <p className="text-xs text-slate-500 mb-4">下载二维码海报，方便在朋友圈、社交媒体或线下宣传。</p>
+                        <h3 className="font-semibold mb-3">制作海报</h3>
+                        <p className="text-xs text-slate-500 mb-4">选择海报底图，将自己的二维码放上去并下载，方便在朋友圈、社交媒体或线下宣传。</p>
                         <div className="flex items-start gap-4">
                             <div className="rounded-xl border border-slate-200 bg-white p-3 shrink-0">
                                 <img src={qrUrl} alt="专属链接二维码" className="w-32 h-32" />
@@ -1036,7 +1036,9 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
 
     const loadPoster = (src: string) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        // Only set crossOrigin for true cross-origin URLs. Setting it on a
+        // data: URL trips Safari, and same-origin URLs don't need it.
+        if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
         img.onload = () => {
             setPosterSrc(src);
             setPosterDims({ w: img.naturalWidth, h: img.naturalHeight });
@@ -1045,7 +1047,11 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
             const sizeYFrac = size * aspectWoverH;
             setQrBox({ x: (1 - size) / 2, y: Math.min(0.95 - sizeYFrac, 0.7), size });
         };
-        img.onerror = () => setError('无法加载该图片，可能是跨域限制');
+        img.onerror = () => {
+            let host = '';
+            try { host = new URL(src).host; } catch { host = src.slice(0, 24); }
+            setError(`无法加载图片（来源: ${host || 'data'}）。请尝试其他图片或重新上传。`);
+        };
         img.src = src;
     };
 
@@ -1109,9 +1115,13 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
     const loadImg = (src: string) =>
         new Promise<HTMLImageElement>((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = 'anonymous';
+            if (/^https?:/i.test(src)) img.crossOrigin = 'anonymous';
             img.onload = () => resolve(img);
-            img.onerror = () => reject(new Error('图片加载失败（可能是跨域）'));
+            img.onerror = () => {
+                let host = '';
+                try { host = new URL(src).host; } catch { host = src.slice(0, 24); }
+                reject(new Error(`图片加载失败（来源: ${host || 'data'}）`));
+            };
             img.src = src;
         });
 
@@ -1274,7 +1284,7 @@ const PosterEditor: React.FC<PosterEditorProps> = ({ agent, marketingQrUrl, shar
                                                 src={qrSrc}
                                                 alt="QR preview"
                                                 className="w-full h-full object-contain p-1 pointer-events-none"
-                                                crossOrigin="anonymous"
+                                                {...(/^https?:/i.test(qrSrc) ? { crossOrigin: 'anonymous' as const } : {})}
                                                 draggable={false}
                                             />
                                         )}
