@@ -302,6 +302,12 @@ const HealthQuoteResults: React.FC<{
         [plans]
     );
     const METALS = ['Bronze', 'Silver', 'Gold', 'Platinum'];
+    const METAL_LABELS_ZH: Record<string, string> = {
+        Bronze: '铜级',
+        Silver: '银级',
+        Gold: '金级',
+        Platinum: '铂金',
+    };
     const NETWORKS = ['HMO', 'PPO', 'EPO', 'POS'];
 
     const computeHistogram = (values: number[], lo: number, hi: number, bins = 18) => {
@@ -435,7 +441,7 @@ const HealthQuoteResults: React.FC<{
                                     }`}
                                 >
                                     <div className="w-3.5 h-3.5 rounded-full" style={{ background: PLAN_TYPE_COLORS[m] }} />
-                                    <span className="text-[10px] text-slate-700">{m}</span>
+                                    <span className="text-[10px] text-slate-700">{METAL_LABELS_ZH[m] || m}</span>
                                 </button>
                             );
                         })}
@@ -589,7 +595,7 @@ const HealthQuoteResults: React.FC<{
                                                     {plan.plan_type && (
                                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-900 text-[11px] rounded-full">
                                                             <span className="w-1.5 h-1.5 rounded-full" style={{ background: PLAN_TYPE_COLORS[plan.plan_type] || '#94a3b8' }} />
-                                                            {plan.plan_type}
+                                                            {METAL_LABELS_ZH[plan.plan_type] || plan.plan_type}
                                                         </span>
                                                     )}
                                                     {plan.network_type && (
