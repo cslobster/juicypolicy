@@ -1,5 +1,6 @@
 import os
 import json
+from pathlib import Path
 from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from google import genai
+import requests
 
 import re
 import secrets
@@ -35,8 +36,94 @@ from .agent_auth import (
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
 
 WORKER_AUTH_TOKEN = os.getenv("WORKER_AUTH_TOKEN", "juicypolicy_worker_token_2026")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+
+def _load_openrouter_key() -> Optional[str]:
+    """Resolve the OpenRouter API key. Env var wins; fall back to the local
+    key file at ~/tips/openrouter.key for development."""
+    key = os.getenv("OPENROUTER_API_KEY")
+    if key:
+        return key.strip()
+    try:
+        p = Path.home() / "tips" / "openrouter.key"
+        if p.exists():
+            return p.read_text().strip()
+    except Exception:
+        pass
+    return None
+
+
+OPENROUTER_API_KEY = _load_openrouter_key()
+# Try the free gpt-oss-120b first; fall back to deepseek-v4-flash when the
+# free tier is rate-limited or unavailable. Both can be overridden via env.
+OPENROUTER_PRIMARY_MODEL = os.getenv("OPENROUTER_PRIMARY_MODEL", "openai/gpt-oss-120b:free")
+OPENROUTER_FALLBACK_MODEL = os.getenv("OPENROUTER_FALLBACK_MODEL", "deepseek/deepseek-v4-flash")
+
+
+# Status codes that mean "this model isn't usable right now — try the next one"
+_FALLBACK_STATUS = {429, 402, 502, 503, 504}
+
+
+def _call_openrouter(model: str, messages: list) -> tuple[Optional[str], Optional[tuple[int, str]]]:
+    """Call OpenRouter for one model. Returns (reply, None) on success or
+    (None, (status, detail)) on failure. `status` is the upstream HTTP code
+    (or 0 for transport errors / malformed bodies)."""
+    try:
+        resp = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://juicypolicy.com",
+                "X-Title": "JuicyPolicy",
+            },
+            json={"model": model, "messages": messages},
+            timeout=60,
+        )
+    except requests.RequestException as e:
+        return None, (0, f"transport error: {e}")
+
+    if resp.status_code >= 400:
+        return None, (resp.status_code, resp.text[:500])
+
+    try:
+        data = resp.json()
+        # OpenRouter occasionally returns 200 with an error object in body
+        if isinstance(data, dict) and data.get("error"):
+            err = data["error"]
+            code = err.get("code") if isinstance(err, dict) else None
+            return None, (int(code) if isinstance(code, int) else 0, json.dumps(err)[:500])
+        return data["choices"][0]["message"]["content"], None
+    except (KeyError, IndexError, ValueError, TypeError) as e:
+        return None, (0, f"malformed response: {e}")
+
+
+def _openrouter_chat_with_fallback(messages: list) -> str:
+    """Try the primary model, then the fallback, on rate-limit / availability
+    errors. Raises HTTPException(502) if both fail."""
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenRouter API key not configured")
+
+    reply, err = _call_openrouter(OPENROUTER_PRIMARY_MODEL, messages)
+    if reply is not None:
+        return reply
+
+    status, detail = err
+    # Only fall back on rate-limit / unavailability classes — surface real
+    # errors (auth, malformed request, etc.) directly so they get fixed.
+    if status in _FALLBACK_STATUS or status == 0:
+        reply2, err2 = _call_openrouter(OPENROUTER_FALLBACK_MODEL, messages)
+        if reply2 is not None:
+            return reply2
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Both OpenRouter models failed. "
+                f"Primary ({OPENROUTER_PRIMARY_MODEL}): {status} {detail}. "
+                f"Fallback ({OPENROUTER_FALLBACK_MODEL}): {err2[0]} {err2[1]}"
+            ),
+        )
+    raise HTTPException(status_code=502, detail=f"OpenRouter error ({status}): {detail}")
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -342,10 +429,8 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 def chat_with_quote(request: ChatRequest, db: Session = Depends(get_db)):
-    """Chat about quote results using Gemini with plan data as context."""
-    if not gemini_client:
-        raise HTTPException(status_code=500, detail="Gemini API key not configured")
-
+    """Chat about quote results via OpenRouter. Tries gpt-oss-120b:free first
+    and falls back to deepseek-v4-flash on rate-limit / availability errors."""
     quote = db.query(models.Quote).filter(models.Quote.quote_id == request.quote_id).first()
     if quote is None:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -402,23 +487,15 @@ def chat_with_quote(request: ChatRequest, db: Session = Depends(get_db)):
 4. 如果客户选中了某个计划，围绕该计划回答
 5. 语气亲切专业"""
 
-    # Build conversation
-    contents = [{"role": "user", "parts": [{"text": system_prompt + "\n\n请回复: 好的，我已了解您的保险方案信息，请问有什么可以帮您？"}]}]
-    contents.append({"role": "model", "parts": [{"text": "好的，我已了解您的保险方案信息，请问有什么可以帮您？"}]})
-
+    # Build OpenAI-compatible message list for OpenRouter
+    messages = [{"role": "system", "content": system_prompt}]
     for msg in request.history:
-        role = "user" if msg.role == "user" else "model"
-        contents.append({"role": role, "parts": [{"text": msg.content}]})
+        role = "assistant" if msg.role == "assistant" else "user"
+        messages.append({"role": role, "content": msg.content})
+    messages.append({"role": "user", "content": request.message})
 
-    contents.append({"role": "user", "parts": [{"text": request.message}]})
+    reply = _openrouter_chat_with_fallback(messages)
 
-    response = gemini_client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=contents,
-    )
-
-    import re
-    reply = response.text
     # Strip all markdown formatting
     reply = re.sub(r'\*\*(.+?)\*\*', r'\1', reply)  # **bold**
     reply = re.sub(r'\*(.+?)\*', r'\1', reply)       # *italic*
@@ -800,6 +877,7 @@ def _to_decimal_safe(v):
 
 class AgentQuotePatchRequest(BaseModel):
     is_vip: Optional[bool] = None
+    status: Optional[str] = None  # submitted, contacted, enrolled, cancelled
     applicant: Optional[dict] = None  # {firstName, lastName, dob, phone, email, address, city, state, zip, ssn, annualIncome}
 
 
@@ -821,8 +899,8 @@ def agent_update_quote(
     if req.is_vip is not None:
         quote.is_vip = bool(req.is_vip)
 
-    if req.applicant is not None:
-        a = req.applicant
+    enrollment = None
+    if req.applicant is not None or req.status is not None:
         enrollment = (
             db.query(models.Enrollment)
             .filter(models.Enrollment.quote_id == quote_id)
@@ -836,6 +914,17 @@ def agent_update_quote(
                 status="contacted",
             )
             db.add(enrollment)
+
+    if req.status is not None and enrollment is not None:
+        allowed = {"submitted", "contacted", "enrolled", "cancelled"}
+        if req.status not in allowed:
+            raise HTTPException(status_code=400, detail="无效的状态值")
+        enrollment.status = req.status
+        if req.status == "submitted":
+            quote.enrollment_status = "submitted"
+
+    if req.applicant is not None:
+        a = req.applicant
 
         for field, mapping in {
             "first_name": ("firstName", "first_name"),

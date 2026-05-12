@@ -7,6 +7,7 @@ Setup:
     3. modal secret create juicypolicy-env \
          DATABASE_URL="postgresql://..." \
          GEMINI_API_KEY="..." \
+         OPENROUTER_API_KEY="..." \
          WORKER_AUTH_TOKEN="..."
     4. modal deploy backend/modal_app.py
 
