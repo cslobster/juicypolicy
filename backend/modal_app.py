@@ -22,7 +22,7 @@ remote_path = "/root/juicypolicy-backend"
 
 # Image for FastAPI (no browser needed)
 api_image = (
-    modal.Image.debian_slim()
+    modal.Image.debian_slim(python_version="3.12")
     .pip_install_from_requirements(str(backend_dir / "requirements.txt"))
     .env({"PYTHONPATH": remote_path})
     .add_local_dir(backend_dir, remote_path=remote_path, copy=True)
@@ -30,7 +30,7 @@ api_image = (
 
 # Image for worker (needs Playwright + Chromium)
 worker_image = (
-    modal.Image.debian_slim()
+    modal.Image.debian_slim(python_version="3.12")
     .apt_install(
         "wget", "ca-certificates", "fonts-liberation",
         "libasound2", "libatk-bridge2.0-0", "libatk1.0-0",
