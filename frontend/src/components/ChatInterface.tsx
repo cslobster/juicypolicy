@@ -32,7 +32,7 @@ const ChatInterface: React.FC = () => {
         if (bottomRef.current) {
             bottomRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [messages, isOpen]);
+    }, [messages, isOpen, isBusy]);
 
     useEffect(() => {
         const ta = textareaRef.current;
@@ -191,13 +191,13 @@ const ChatInterface: React.FC = () => {
                                     </div>
                                 </div>
                                 {optionList && (
-                                    <div className="flex flex-col items-end gap-2 mt-1">
+                                    <div className="flex flex-wrap justify-end gap-1.5 mt-1">
                                         {optionList.map((opt) => (
                                             <button
                                                 key={opt}
                                                 onClick={() => sendMessage(opt)}
                                                 disabled={isBusy}
-                                                className="px-4 py-2 bg-white border border-slate-200 rounded-full text-[14px] text-slate-900 shadow-[0_1px_3px_rgba(15,23,42,0.08),0_1px_2px_rgba(15,23,42,0.04)] hover:bg-slate-50 hover:border-slate-300 hover:shadow-[0_2px_5px_rgba(15,23,42,0.10),0_1px_2px_rgba(15,23,42,0.05)] disabled:opacity-50 transition-all"
+                                                className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[12px] text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] hover:bg-slate-50 hover:border-slate-300 disabled:opacity-50 transition-all"
                                             >
                                                 {opt}
                                             </button>
@@ -207,6 +207,15 @@ const ChatInterface: React.FC = () => {
                             </React.Fragment>
                         );
                     })}
+                    {isBusy && (
+                        <div className="flex justify-start" aria-label="顾问正在输入" role="status">
+                            <div className="px-4 py-3 rounded-2xl bg-slate-100 shadow-[0_1px_2px_rgba(15,23,42,0.06)] inline-flex items-center gap-1.5">
+                                <span className="bg-slate-400 typing-dot" style={{ animationDelay: '0ms' }} />
+                                <span className="bg-slate-400 typing-dot" style={{ animationDelay: '160ms' }} />
+                                <span className="bg-slate-400 typing-dot" style={{ animationDelay: '320ms' }} />
+                            </div>
+                        </div>
+                    )}
                     <div ref={bottomRef} />
                 </div>
 
