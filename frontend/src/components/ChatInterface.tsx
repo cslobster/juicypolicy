@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, ArrowUp, Paperclip, ChevronLeft, Citrus, Maximize2, Minimize2 } from 'lucide-react';
-import { dispatchChatMessage, hasChatHandler, registerChatPusher, registerBotPusher } from '../lib/chatBus';
+import { dispatchChatMessage, hasChatHandler, registerChatPusher, registerBotPusher, subscribeChatVisibility } from '../lib/chatBus';
 
 interface Message {
     id: string;
@@ -16,6 +16,7 @@ const SUGGESTED_TOPICS = [
 
 const ChatInterface: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [visible, setVisible] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { id: '1', sender: 'bot', text: '👋 您好！我是鲜橙保险顾问。请告诉我您今天想了解的内容。' }
     ]);
@@ -24,6 +25,8 @@ const ChatInterface: React.FC = () => {
     const [isExpanded, setIsExpanded] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => subscribeChatVisibility(setVisible), []);
 
     useEffect(() => {
         if (bottomRef.current) {
@@ -121,6 +124,8 @@ const ChatInterface: React.FC = () => {
         }
         return -1;
     })();
+
+    if (!visible) return null;
 
     return (
         <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end pointer-events-none">

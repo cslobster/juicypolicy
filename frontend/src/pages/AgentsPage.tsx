@@ -520,7 +520,7 @@ const ClientsView = ({ token }: { token: string }) => {
     const [quotes, setQuotes] = useState<AgentQuote[] | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
-    const [tab, setTab] = useState<'enrolled' | 'vip' | 'quoted'>('enrolled');
+    const [tab, setTab] = useState<'enrolled' | 'signed' | 'vip' | 'quoted'>('enrolled');
     const [editingQuoteId, setEditingQuoteId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<any>({});
     const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -537,14 +537,19 @@ const ClientsView = ({ token }: { token: string }) => {
     }, [token]);
 
     const isVip = (q: AgentQuote) => !!q.is_vip;
+    const isSigned = (q: AgentQuote) => q.enrollment_status === 'enrolled';
+    const isApplied = (q: AgentQuote) =>
+        q.enrollment_status === 'submitted' || q.enrollment_status === 'contacted';
     const filtered = (quotes || []).filter(q => {
-        if (tab === 'enrolled') return q.enrollment_status === 'submitted';
+        if (tab === 'enrolled') return isApplied(q);
+        if (tab === 'signed') return isSigned(q);
         if (tab === 'vip') return isVip(q);
-        return q.enrollment_status !== 'submitted' && q.status === 'quoted';
+        return !isApplied(q) && !isSigned(q) && q.status === 'quoted';
     });
-    const enrolledCount = (quotes || []).filter(q => q.enrollment_status === 'submitted').length;
+    const enrolledCount = (quotes || []).filter(isApplied).length;
+    const signedCount = (quotes || []).filter(isSigned).length;
     const vipCount = (quotes || []).filter(isVip).length;
-    const quotedOnlyCount = (quotes || []).filter(q => q.enrollment_status !== 'submitted' && q.status === 'quoted').length;
+    const quotedOnlyCount = (quotes || []).filter(q => !isApplied(q) && !isSigned(q) && q.status === 'quoted').length;
 
     const patchQuote = async (quote_id: number, body: any) => {
         const res = await fetch(`${API_BASE}/api/agents/me/quotes/${quote_id}`, {
@@ -603,6 +608,9 @@ const ClientsView = ({ token }: { token: string }) => {
             city: a.city || '',
             state: a.state || '',
             zip: a.zip || '',
+            ssn: a.ssn || '',
+            annualIncome: a.annual_income || '',
+            status: q.enrollment_status || 'submitted',
         });
     };
 
@@ -610,10 +618,11 @@ const ClientsView = ({ token }: { token: string }) => {
         if (editingQuoteId == null) return;
         setActionLoading(editingQuoteId);
         try {
-            await patchQuote(editingQuoteId, { applicant: editForm });
+            const { status, ...applicantPatch } = editForm;
+            await patchQuote(editingQuoteId, { applicant: applicantPatch, status });
             // Optimistic local update
             setQuotes(prev => prev?.map(x => x.quote_id === editingQuoteId
-                ? { ...x, applicant: {
+                ? { ...x, enrollment_status: status || x.enrollment_status, applicant: {
                     ...(x.applicant || {} as any),
                     first_name: editForm.firstName || null,
                     last_name: editForm.lastName || null,
@@ -624,6 +633,8 @@ const ClientsView = ({ token }: { token: string }) => {
                     city: editForm.city || null,
                     state: editForm.state || null,
                     zip: editForm.zip || null,
+                    ssn: editForm.ssn || null,
+                    annual_income: editForm.annualIncome || null,
                 }} : x) || prev);
             setEditingQuoteId(null);
         } catch (err: any) {
@@ -640,6 +651,15 @@ const ClientsView = ({ token }: { token: string }) => {
     };
     const sexLabel = (s: string | null) => s === 'Male' ? '男' : s === 'Female' ? '女' : '—';
     const statusBadge = (q: AgentQuote) => {
+        if (q.enrollment_status === 'enrolled') {
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-100 text-sky-800">已签约</span>;
+        }
+        if (q.enrollment_status === 'contacted') {
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">已联系</span>;
+        }
+        if (q.enrollment_status === 'cancelled') {
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-200 text-slate-700">已取消</span>;
+        }
         if (q.enrollment_status === 'submitted') {
             return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-violet-100 text-violet-800">已申请</span>;
         }
@@ -674,6 +694,7 @@ const ClientsView = ({ token }: { token: string }) => {
                 <div className="mt-4 flex items-center gap-1 rounded-full bg-slate-100 p-1 w-fit">
                     {[
                         { id: 'enrolled', label: `已申请 (${enrolledCount})` },
+                        { id: 'signed', label: `已签约 (${signedCount})` },
                         { id: 'vip', label: `VIP客户 (${vipCount})` },
                         { id: 'quoted', label: `仅报价 (${quotedOnlyCount})` },
                     ].map(t => (
@@ -701,7 +722,7 @@ const ClientsView = ({ token }: { token: string }) => {
                     <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                         <UserCircle size={36} className="mx-auto text-slate-300" />
                         <h3 className="mt-4 text-base font-semibold text-slate-900">
-                            {tab === 'enrolled' ? '暂无投保申请' : tab === 'vip' ? '暂无VIP客户' : tab === 'quoted' ? '暂无仅报价客户' : '暂无客户'}
+                            {tab === 'enrolled' ? '暂无投保申请' : tab === 'signed' ? '暂无已签约客户' : tab === 'vip' ? '暂无VIP客户' : tab === 'quoted' ? '暂无仅报价客户' : '暂无客户'}
                         </h3>
                         <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
                             {tab === 'vip'
@@ -805,11 +826,26 @@ const ClientsView = ({ token }: { token: string }) => {
                                             <tr className="bg-slate-50/60">
                                                 <td colSpan={7} className="px-6 py-4">
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div className="sm:col-span-2">
+                                                            <label className="text-xs text-slate-500 mb-1 block">状态</label>
+                                                            <select
+                                                                value={editForm.status || 'submitted'}
+                                                                onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                                                                className="flex h-9 w-full rounded-md border border-input bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                            >
+                                                                <option value="submitted">已申请</option>
+                                                                <option value="contacted">已联系</option>
+                                                                <option value="enrolled">已签约</option>
+                                                                <option value="cancelled">已取消</option>
+                                                            </select>
+                                                        </div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">姓</label><Input value={editForm.lastName} onChange={e => setEditForm({ ...editForm, lastName: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">名</label><Input value={editForm.firstName} onChange={e => setEditForm({ ...editForm, firstName: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">出生日期</label><Input type="date" value={editForm.dob} onChange={e => setEditForm({ ...editForm, dob: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">电话</label><Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">邮箱</label><Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">社会安全号码 (SSN)</label><Input value={editForm.ssn} onChange={e => setEditForm({ ...editForm, ssn: e.target.value })} /></div>
+                                                        <div><label className="text-xs text-slate-500 mb-1 block">年收入</label><Input value={editForm.annualIncome} onChange={e => setEditForm({ ...editForm, annualIncome: e.target.value })} placeholder="例如：50000" /></div>
                                                         <div className="sm:col-span-2"><label className="text-xs text-slate-500 mb-1 block">街道地址</label><Input value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">城市</label><Input value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} /></div>
                                                         <div><label className="text-xs text-slate-500 mb-1 block">州</label><Input value={editForm.state} onChange={e => setEditForm({ ...editForm, state: e.target.value })} /></div>

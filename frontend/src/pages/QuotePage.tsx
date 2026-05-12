@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { registerChatHandler } from '../lib/chatBus';
+import { registerChatHandler, setChatVisible, pushBotMessage } from '../lib/chatBus';
 
 interface QuotePlan {
     id: string;
@@ -266,7 +266,8 @@ const HealthQuoteResults: React.FC<{
     selectedPlan: HealthPlan | null;
     onSelectPlan: (plan: HealthPlan | null) => void;
     onEnroll?: (plan: HealthPlan) => void;
-}> = ({ plans, onBack, highlightedPlans = [], selectedPlan, onSelectPlan, onEnroll }) => {
+    onConsult?: (plan: HealthPlan) => void;
+}> = ({ plans, onBack, highlightedPlans = [], selectedPlan, onSelectPlan, onEnroll, onConsult }) => {
     const allPremiums = plans.map(p => p.monthly_premium ?? 0).filter(v => v > 0);
     const allDeductibles = plans.map(p => p.deductible ?? 0).filter(v => v >= 0);
     const minPremium = allPremiums.length ? Math.min(...allPremiums) : 0;
@@ -717,7 +718,15 @@ const HealthQuoteResults: React.FC<{
                                                     className="rounded-full px-5"
                                                     onClick={(e) => { e.stopPropagation(); onEnroll?.(plan); }}
                                                 >
-                                                    投保此计划
+                                                    投保
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="rounded-full px-5"
+                                                    onClick={(e) => { e.stopPropagation(); onConsult?.(plan); }}
+                                                >
+                                                    咨询
                                                 </Button>
                                                 {plan.sbc_url && (
                                                     <a
@@ -1310,8 +1319,8 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
     const errClass = "text-xs text-red-500 mt-1";
 
     return (
-        <Card className="animate-fade-in mx-auto mt-0 sm:mt-8 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
-            <CardContent className="px-5 py-5 sm:px-10 sm:py-10">
+        <Card className="animate-fade-in mx-auto mt-0 sm:mt-2 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
+            <CardContent className="px-5 pt-4 pb-5 sm:px-10 sm:pt-5 sm:pb-10">
                 <div className="mx-auto max-w-[620px]">
                     <section>
                         <div className="mb-5 sm:mb-10">
@@ -2208,6 +2217,14 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
         return () => registerChatHandler(null);
     }, []);
 
+    // Only show the floating chat bubble once we have insurance quotes on screen.
+    useEffect(() => {
+        const haveQuotes = showHealthResults && healthPlans.length > 0;
+        setChatVisible(haveQuotes);
+        if (!haveQuotes) return;
+        return () => setChatVisible(false);
+    }, [showHealthResults, healthPlans.length]);
+
     const handleCountryWidgetSubmit = () => {
         if (!citizenship || !residence) return;
         handleSend(`国籍：${citizenship}，居住地：${residence}`);
@@ -2303,6 +2320,16 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                         selectedPlan={selectedViewPlan}
                         onSelectPlan={(plan) => { setSelectedViewPlan(plan); setHighlightedPlans([]); }}
                         onBack={() => { setShowHealthResults(false); setHealthPlans([]); setActiveQuoteId(null); setQuoteChatMessages([]); setSelectedViewPlan(null); localStorage.removeItem('jp_health_quote_id'); }}
+                        onConsult={(p) => {
+                            // Lock the chat context to this plan, then open the
+                            // chat with a couple of quick-pick suggestions.
+                            setSelectedViewPlan(p);
+                            setHighlightedPlans([]);
+                            pushBotMessage({
+                                text: `想了解【${p.plan_name}】吗？您可以问我：`,
+                                options: ['这个保险适合我吗？', '介绍一下这个保险'],
+                            });
+                        }}
                         onEnroll={(p) => {
                             setShowHealthResults(false);
                             setChatStage(10);
