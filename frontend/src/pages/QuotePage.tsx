@@ -1319,13 +1319,12 @@ const HealthQuoteForm: React.FC<{ onSubmit: (data: any) => void }> = ({ onSubmit
     const errClass = "text-xs text-red-500 mt-1";
 
     return (
-        <Card className="animate-fade-in mx-auto mt-0 sm:mt-2 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
-            <CardContent className="px-5 pt-4 pb-5 sm:px-10 sm:pt-5 sm:pb-10">
+        <Card className="animate-fade-in mx-auto mt-0 w-full max-w-[680px] rounded-[24px] border-none bg-white shadow-[0_28px_90px_-60px_rgba(15,23,42,0.55)]">
+            <CardContent className="px-5 pt-3 pb-5 sm:px-10 sm:pt-3 sm:pb-10">
                 <div className="mx-auto max-w-[620px]">
                     <section>
-                        <div className="mb-5 sm:mb-10">
+                        <div className="mb-4 sm:mb-6">
                             <h2 className="text-xl sm:text-2xl font-bold leading-tight tracking-normal">您住在哪里？</h2>
-                            <p className="mt-1 text-sm text-[#858585]">您所在地区会影响可选择的健康保险计划。</p>
                         </div>
 
                         <div className="max-w-[450px]">
@@ -2340,7 +2339,7 @@ const QuotePage: React.FC<QuotePageProps> = ({ forceType, agentUsername }) => {
                         }}
                     />
                 ) : (
-                <div className="flex-1 px-4 py-2 sm:py-6 overflow-y-auto flex flex-col gap-3 sm:gap-5">
+                <div className="flex-1 px-4 pt-1 pb-2 sm:pt-2 sm:pb-6 overflow-y-auto flex flex-col gap-3 sm:gap-5">
                     {resumeQuoteId && !showHealthResults && (
                         <div className="mx-auto w-full max-w-[768px] flex flex-wrap items-center justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/60 px-4 py-2.5 text-sm">
                             <span className="text-slate-700">您有 1 天内的报价记录。</span>
